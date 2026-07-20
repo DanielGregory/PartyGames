@@ -2,17 +2,25 @@
 
 import { useState } from "react";
 import type { RoomView } from "@/lib/useRoom";
-import { GAME_LIST } from "@/lib/gameMeta";
+import { GAME_LIST, type GameMeta } from "@/lib/gameMeta";
 import { PlayerList } from "./PlayerList";
 import { QRLink } from "./QRLink";
 import { Button, Card } from "./ui";
 
 const TRIVIA_ROUND_OPTIONS = [3, 5, 10, 15];
 
+function playerRangeLabel(game: GameMeta): string {
+  if (game.maxPlayers === undefined) return `${game.minPlayers}+ players`;
+  if (game.maxPlayers === game.minPlayers) return `Exactly ${game.minPlayers} players`;
+  return `${game.minPlayers}-${game.maxPlayers} players`;
+}
+
 export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable<RoomView["room"]>; you: NonNullable<RoomView["you"]> }) {
   const connectedCount = room.players.filter((p) => p.connected).length;
   const selected = room.selectedGame ? GAME_LIST.find((g) => g.id === room.selectedGame) : null;
-  const canStart = selected ? connectedCount >= selected.minPlayers : false;
+  const tooFew = selected ? connectedCount < selected.minPlayers : false;
+  const tooMany = selected?.maxPlayers !== undefined ? connectedCount > selected.maxPlayers : false;
+  const canStart = Boolean(selected) && !tooFew && !tooMany;
   const [triviaRounds, setTriviaRounds] = useState(5);
 
   function startGame() {
@@ -21,6 +29,13 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
     } else {
       send({ type: "start_game" });
     }
+  }
+
+  function startButtonLabel(): string {
+    if (!selected) return "Pick a game to start";
+    if (tooFew) return `Need ${selected.minPlayers}+ players`;
+    if (tooMany) return `Too many players (max ${selected.maxPlayers})`;
+    return `Start ${selected.label}`;
   }
 
   return (
@@ -60,7 +75,7 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
                   {game.emoji} {game.label}
                 </span>
                 <span className="text-sm text-muted">{game.description}</span>
-                <span className="text-xs text-muted">{game.minPlayers}+ players</span>
+                <span className="text-xs text-muted">{playerRangeLabel(game)}</span>
               </button>
             );
           })}
@@ -87,11 +102,7 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
           )}
 
           <Button disabled={!canStart} onClick={startGame}>
-            {selected
-              ? canStart
-                ? `Start ${selected.label}`
-                : `Need ${selected.minPlayers}+ players`
-              : "Pick a game to start"}
+            {startButtonLabel()}
           </Button>
         </div>
       ) : (

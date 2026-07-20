@@ -76,6 +76,10 @@ export type GameMeta = {
   label: string;
   description: string;
   minPlayers: number;
+  // Undefined means no cap. Classical board games (Tic-Tac-Toe, Chess,
+  // Battleship, ...) will mostly set this to exactly 2 - none of the
+  // current five modes need it, so it's optional and unset for all of them.
+  maxPlayers?: number;
 };
 
 export interface GameModule<TState extends BaseGameState = BaseGameState> {

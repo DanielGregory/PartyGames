@@ -8,6 +8,9 @@ export type GameMeta = {
   emoji: string;
   description: string;
   minPlayers: number;
+  // Undefined means no cap. Classical board games (Tic-Tac-Toe, Chess,
+  // Battleship, ...) will mostly set this to exactly 2.
+  maxPlayers?: number;
 };
 
 export const GAME_LIST: GameMeta[] = [

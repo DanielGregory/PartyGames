@@ -185,6 +185,13 @@ export async function handleMessage(
       if (connectedPlayers.length < mod.meta.minPlayers) {
         throw new RoomActionError(`${mod.meta.label} needs at least ${mod.meta.minPlayers} players.`);
       }
+      if (mod.meta.maxPlayers !== undefined && connectedPlayers.length > mod.meta.maxPlayers) {
+        throw new RoomActionError(
+          mod.meta.maxPlayers === mod.meta.minPlayers
+            ? `${mod.meta.label} is for exactly ${mod.meta.maxPlayers} players.`
+            : `${mod.meta.label} supports at most ${mod.meta.maxPlayers} players.`
+        );
+      }
       room.game_id = mod.meta.id;
       room.game_state = mod.next(null, players, message.config);
       room.status = "playing";
