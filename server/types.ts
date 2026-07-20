@@ -15,7 +15,8 @@ export type GameId =
   | "guesswho"
   | "boggle"
   | "wordsearch"
-  | "wordle";
+  | "wordle"
+  | "pictionary";
 
 export type Player = {
   id: string;

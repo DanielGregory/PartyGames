@@ -189,6 +189,26 @@ export const BOGGLE_DICE: string[][] = [
   ["D", "E", "I", "L", "R", "X"],
 ];
 
+// Concrete, drawable prompts for Pictionary - deliberately simpler and more
+// literal than HANGMAN_WORDS or the dictionary, since these need to be
+// sketchable in under a minute, not just spellable.
+export const DRAWING_WORDS: string[] = [
+  "Dog", "Cat", "Elephant", "Giraffe", "Penguin", "Octopus", "Butterfly", "Spider",
+  "Kangaroo", "Dolphin", "Shark", "Owl", "Snail", "Frog", "Bee", "Snake",
+  "House", "Castle", "Lighthouse", "Bridge", "Tent", "Windmill", "Skyscraper", "Igloo",
+  "Car", "Airplane", "Bicycle", "Rocket", "Submarine", "Train", "Sailboat", "Hot air balloon",
+  "Pizza", "Ice cream cone", "Hamburger", "Birthday cake", "Watermelon", "Taco", "Donut", "Sushi",
+  "Sun", "Moon", "Rainbow", "Volcano", "Waterfall", "Tornado", "Lightning bolt", "Snowman",
+  "Guitar", "Piano", "Drum", "Trumpet", "Violin", "Microphone", "Headphones", "Saxophone",
+  "Robot", "Ghost", "Alien", "Dragon", "Unicorn", "Mermaid", "Wizard", "Vampire",
+  "Umbrella", "Backpack", "Sunglasses", "Crown", "Key", "Anchor", "Compass", "Telescope",
+  "Soccer ball", "Basketball hoop", "Tennis racket", "Roller coaster", "Skateboard", "Kite", "Fishing rod", "Campfire",
+  "Cowboy hat", "Astronaut", "Pirate ship", "Knight in armor", "Superhero", "Ballerina", "Chef", "Firefighter",
+  "Toothbrush", "Scissors", "Ladder", "Hammer", "Paintbrush", "Camera", "Clock", "Magnifying glass",
+  "Snowflake", "Cactus", "Palm tree", "Mushroom", "Sunflower", "Beehive", "Spider web", "Rain cloud",
+  "Brushing teeth", "Riding a bike", "Playing tennis", "Sleeping", "Juggling", "Dancing", "Swimming", "Climbing a ladder",
+];
+
 export function pickUnused<T>(bank: T[], used: number[]): { item: T; index: number } {
   const available = bank.map((_, i) => i).filter((i) => !used.includes(i));
   const pool = available.length > 0 ? available : bank.map((_, i) => i);

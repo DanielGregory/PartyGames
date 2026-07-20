@@ -226,6 +226,14 @@ export const GAME_LIST: GameMeta[] = [
       minutesSetting("roundMinutes", "Round timer", [2, 3, 5, 10], 3),
     ],
   },
+  {
+    id: "pictionary",
+    label: "Pictionary",
+    emoji: "🎨",
+    description: "One player draws a secret word while everyone else races to guess it.",
+    minPlayers: 3,
+    settings: [roundsSetting(0), minutesSetting("roundMinutes", "Drawing timer", [1, 2, 3, 5], 2)],
+  },
 ];
 
 export function gameMeta(id: GameId): GameMeta {

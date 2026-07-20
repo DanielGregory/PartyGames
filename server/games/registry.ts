@@ -11,6 +11,7 @@ import { guessWhoModule } from "./guesswho";
 import { boggleModule } from "./boggle";
 import { wordSearchModule } from "./wordsearch";
 import { wordleModule } from "./wordle";
+import { pictionaryModule } from "./pictionary";
 
 export const gameRegistry: Record<GameId, GameModule<BaseGameState & Record<string, unknown>>> = {
   spyfall: spyfallModule as GameModule<BaseGameState & Record<string, unknown>>,
@@ -25,6 +26,7 @@ export const gameRegistry: Record<GameId, GameModule<BaseGameState & Record<stri
   boggle: boggleModule as GameModule<BaseGameState & Record<string, unknown>>,
   wordsearch: wordSearchModule as GameModule<BaseGameState & Record<string, unknown>>,
   wordle: wordleModule as GameModule<BaseGameState & Record<string, unknown>>,
+  pictionary: pictionaryModule as GameModule<BaseGameState & Record<string, unknown>>,
 };
 
 export const gameList = Object.values(gameRegistry).map((m) => m.meta);
