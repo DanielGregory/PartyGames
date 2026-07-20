@@ -6,6 +6,7 @@ export type FibOption = { id: string; text: string; authorId: string | null };
 export type FibbingItState = BaseGameState & {
   stage: "submit" | "vote" | "reveal";
   usedIndices: number[];
+  totalRounds: number; // 0 means no cap - host ends the game manually
   question: string;
   trueAnswer: string;
   fakeAnswers: Record<string, string>;
@@ -13,10 +14,15 @@ export type FibbingItState = BaseGameState & {
   votes: Record<string, string>;
 };
 
-function startRound(prev: FibbingItState | null, players: Player[]): FibbingItState {
+function startRound(
+  prev: FibbingItState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): FibbingItState {
   void players;
   const usedIndices = prev?.usedIndices ?? [];
   const { item, index } = pickUnused(FIB_PROMPTS, usedIndices);
+  const totalRounds = prev?.totalRounds ?? (typeof config?.rounds === "number" ? config.rounds : 0);
 
   return {
     stage: "submit",
@@ -25,6 +31,7 @@ function startRound(prev: FibbingItState | null, players: Player[]): FibbingItSt
     gameOver: false,
     scoreDeltas: {},
     usedIndices: [...usedIndices, index],
+    totalRounds,
     question: item.question,
     trueAnswer: item.answer,
     fakeAnswers: {},
@@ -79,7 +86,14 @@ function applyAction(state: FibbingItState, playerId: string, payload: unknown, 
       }
     }
 
-    return { ...state, votes, stage: "reveal", roundOver: true, scoreDeltas };
+    return {
+      ...state,
+      votes,
+      stage: "reveal",
+      roundOver: true,
+      gameOver: state.totalRounds > 0 && state.round >= state.totalRounds,
+      scoreDeltas,
+    };
   }
 
   return state;

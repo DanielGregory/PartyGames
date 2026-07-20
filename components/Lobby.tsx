@@ -7,7 +7,11 @@ import { PlayerList } from "./PlayerList";
 import { QRLink } from "./QRLink";
 import { Button, Card } from "./ui";
 
-const TRIVIA_ROUND_OPTIONS = [3, 5, 10, 15];
+function defaultSettings(game: GameMeta | null | undefined): Record<string, string | number> {
+  const values: Record<string, string | number> = {};
+  for (const setting of game?.settings ?? []) values[setting.key] = setting.default;
+  return values;
+}
 
 function playerRangeLabel(game: GameMeta): string {
   if (game.maxPlayers === undefined) return `${game.minPlayers}+ players`;
@@ -22,16 +26,17 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
   // A cap doesn't block starting - it just means the host has to pick who
   // plays and everyone else watches.
   const needsSelection = selected?.maxPlayers !== undefined && connectedCount > selected.maxPlayers;
-  const [triviaRounds, setTriviaRounds] = useState(5);
   const [activeIds, setActiveIds] = useState<string[]>([]);
+  const [settingsValues, setSettingsValues] = useState<Record<string, string | number>>(() => defaultSettings(selected));
 
-  // Reset the player picker during render (not an effect) the moment the
-  // host picks a different game, rather than carrying over a stale
-  // selection from whatever was picked before.
+  // Reset the player picker and settings during render (not an effect) the
+  // moment the host picks a different game, rather than carrying over a
+  // stale selection/values from whatever was picked before.
   const [lastSelectedGame, setLastSelectedGame] = useState(room.selectedGame);
   if (room.selectedGame !== lastSelectedGame) {
     setLastSelectedGame(room.selectedGame);
     setActiveIds([]);
+    setSettingsValues(defaultSettings(selected));
   }
 
   const selectionValid =
@@ -50,7 +55,7 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
   function startGame() {
     send({
       type: "start_game",
-      config: room.selectedGame === "trivia" ? { totalRounds: triviaRounds } : undefined,
+      config: settingsValues,
       activePlayerIds: needsSelection ? activeIds : undefined,
     });
   }
@@ -108,26 +113,26 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
             );
           })}
 
-          {room.selectedGame === "trivia" && (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-muted">Number of rounds</p>
-              <div className="flex gap-2">
-                {TRIVIA_ROUND_OPTIONS.map((n) => (
+          {selected?.settings?.map((setting) => (
+            <div key={setting.key} className="flex flex-col gap-2">
+              <p className="text-sm font-semibold text-muted">{setting.label}</p>
+              <div className="flex flex-wrap gap-2">
+                {setting.options.map((option) => (
                   <button
-                    key={n}
-                    onClick={() => setTriviaRounds(n)}
+                    key={option.value}
+                    onClick={() => setSettingsValues((prev) => ({ ...prev, [setting.key]: option.value }))}
                     className={`flex-1 rounded-xl border px-3 py-2 font-semibold transition-colors ${
-                      triviaRounds === n
+                      settingsValues[setting.key] === option.value
                         ? "border-accent bg-accent/10"
                         : "border-card-border bg-card hover:border-accent/50"
                     }`}
                   >
-                    {n}
+                    {option.label}
                   </button>
                 ))}
               </div>
             </div>
-          )}
+          ))}
 
           {needsSelection && selected && (
             <div className="flex flex-col gap-2">

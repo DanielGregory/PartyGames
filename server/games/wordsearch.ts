@@ -3,10 +3,14 @@ import { randomWords } from "../wordbank";
 
 const GRID_SIZE = 10;
 const CELL_COUNT = GRID_SIZE * GRID_SIZE;
-const TARGET_WORD_COUNT = 8;
-const MIN_WORD_LENGTH = 4;
-const MAX_WORD_LENGTH = 8;
-const ROUND_MS = 3 * 60 * 1000;
+const DEFAULT_TARGET_WORD_COUNT = 8;
+const LENGTH_PRESETS: Record<string, [number, number]> = {
+  short: [3, 6],
+  medium: [4, 8],
+  long: [6, 10],
+};
+const DEFAULT_LENGTH_PRESET = "medium";
+const DEFAULT_ROUND_MS = 3 * 60 * 1000;
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 const DIRECTIONS: [number, number][] = [
@@ -23,6 +27,9 @@ const DIRECTIONS: [number, number][] = [
 export type WordSearchState = BaseGameState & {
   stage: "searching" | "reveal";
   usedWords: string[];
+  targetWordCount: number;
+  roundMs: number;
+  minWordLengthPreset: string;
   gridSize: number;
   grid: string[];
   targetWords: string[];
@@ -63,21 +70,32 @@ function tryPlaceWord(grid: (string | null)[], word: string): number[] | null {
   return null;
 }
 
-function startRound(prev: WordSearchState | null, players: Player[]): WordSearchState {
+function startRound(
+  prev: WordSearchState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): WordSearchState {
   void players;
   const usedWords = prev?.usedWords ?? [];
+  const targetWordCount =
+    prev?.targetWordCount ??
+    (typeof config?.wordCount === "number" ? config.wordCount : DEFAULT_TARGET_WORD_COUNT);
+  const roundMs =
+    prev?.roundMs ?? (typeof config?.roundMinutes === "number" ? config.roundMinutes * 60 * 1000 : DEFAULT_ROUND_MS);
+  const lengthPresetKey =
+    prev?.minWordLengthPreset ?? (typeof config?.wordLength === "string" ? config.wordLength : DEFAULT_LENGTH_PRESET);
+  const [minLen, maxLen] = LENGTH_PRESETS[lengthPresetKey] ?? LENGTH_PRESETS[DEFAULT_LENGTH_PRESET];
+
   // Pull more candidates than needed since not every word will find a
   // placement on the grid (collisions get retried, not guaranteed).
-  const candidates = randomWords(MIN_WORD_LENGTH, MAX_WORD_LENGTH, TARGET_WORD_COUNT * 3, usedWords).map((w) =>
-    w.toUpperCase()
-  );
+  const candidates = randomWords(minLen, maxLen, targetWordCount * 3, usedWords).map((w) => w.toUpperCase());
 
   const grid: (string | null)[] = new Array(CELL_COUNT).fill(null);
   const placements: Record<string, number[]> = {};
   const targetWords: string[] = [];
 
   for (const word of candidates) {
-    if (targetWords.length >= TARGET_WORD_COUNT) break;
+    if (targetWords.length >= targetWordCount) break;
     const cells = tryPlaceWord(grid, word);
     if (cells) {
       placements[word] = cells;
@@ -96,12 +114,15 @@ function startRound(prev: WordSearchState | null, players: Player[]): WordSearch
     gameOver: false,
     scoreDeltas: {},
     usedWords: [...usedWords, ...targetWords.map((w) => w.toLowerCase())],
+    targetWordCount,
+    roundMs,
+    minWordLengthPreset: lengthPresetKey,
     gridSize: GRID_SIZE,
     grid: grid as string[],
     targetWords,
     placements,
     foundWords: {},
-    timerEndsAt: Date.now() + ROUND_MS,
+    timerEndsAt: Date.now() + roundMs,
   };
 }
 

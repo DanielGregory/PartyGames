@@ -11,6 +11,7 @@ type Guess = { word: string; feedback: LetterState[] };
 type WordleView = {
   stage: "guessing" | "reveal";
   round: number;
+  wordLength: number;
   timerEndsAt: number;
   yourGuesses: Guess[];
   guessesRemaining: number;
@@ -58,7 +59,7 @@ export function WordleGame({ game, players, you, send }: GameProps) {
 
   function typeLetter(letter: string) {
     if (done) return;
-    setDraft((d) => (d.length < 5 ? d + letter : d));
+    setDraft((d) => (d.length < view.wordLength ? d + letter : d));
   }
 
   function backspace() {
@@ -66,7 +67,7 @@ export function WordleGame({ game, players, you, send }: GameProps) {
   }
 
   function submit() {
-    if (draft.length !== 5) return;
+    if (draft.length !== view.wordLength) return;
     send({ type: "game_action", payload: { type: "guess", word: draft } });
     setDraft("");
   }
@@ -84,7 +85,11 @@ export function WordleGame({ game, players, you, send }: GameProps) {
         {Array.from({ length: view.maxGuesses }, (_, rowIndex) => {
           const guess = view.yourGuesses[rowIndex];
           const isCurrent = rowIndex === view.yourGuesses.length && !done;
-          const letters = guess ? guess.word.split("") : isCurrent ? draft.padEnd(5).split("") : "     ".split("");
+          const letters = guess
+            ? guess.word.split("")
+            : isCurrent
+              ? draft.padEnd(view.wordLength).split("")
+              : " ".repeat(view.wordLength).split("");
           return (
             <div key={rowIndex} className="flex gap-1.5">
               {letters.map((letter, i) => (
@@ -128,7 +133,7 @@ export function WordleGame({ game, players, you, send }: GameProps) {
             </button>
             <button
               onClick={submit}
-              disabled={draft.length !== 5}
+              disabled={draft.length !== view.wordLength}
               className="rounded-md border border-accent bg-accent/20 px-6 py-2 text-xs font-bold text-accent disabled:opacity-40"
             >
               Enter

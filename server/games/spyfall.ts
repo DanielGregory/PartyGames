@@ -6,6 +6,8 @@ const DISCUSSION_MS = 8 * 60 * 1000;
 export type SpyfallState = BaseGameState & {
   stage: "discussion" | "voting" | "reveal";
   usedIndices: number[];
+  totalRounds: number; // 0 means no cap - host ends the game manually
+  discussionMs: number;
   location: string;
   spyId: string;
   roles: Record<string, string>;
@@ -14,9 +16,17 @@ export type SpyfallState = BaseGameState & {
   result: { spyId: string; location: string; votes: Record<string, string>; spyCaught: boolean } | null;
 };
 
-function startRound(prev: SpyfallState | null, players: Player[]): SpyfallState {
+function startRound(
+  prev: SpyfallState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): SpyfallState {
   const usedIndices = prev?.usedIndices ?? [];
   const { item, index } = pickUnused(LOCATIONS, usedIndices);
+  const totalRounds = prev?.totalRounds ?? (typeof config?.rounds === "number" ? config.rounds : 0);
+  const discussionMs =
+    prev?.discussionMs ??
+    (typeof config?.discussionMinutes === "number" ? config.discussionMinutes * 60 * 1000 : DISCUSSION_MS);
   const spy = players[Math.floor(Math.random() * players.length)];
   const others = players.filter((p) => p.id !== spy.id);
   const shuffledRoles = [...item.roles];
@@ -36,10 +46,12 @@ function startRound(prev: SpyfallState | null, players: Player[]): SpyfallState 
     gameOver: false,
     scoreDeltas: {},
     usedIndices: [...usedIndices, index],
+    totalRounds,
+    discussionMs,
     location: item.name,
     spyId: spy.id,
     roles,
-    timerEndsAt: Date.now() + DISCUSSION_MS,
+    timerEndsAt: Date.now() + discussionMs,
     votes: {},
     result: null,
   };
@@ -91,6 +103,7 @@ function applyAction(state: SpyfallState, playerId: string, payload: unknown, pl
       votes,
       stage: "reveal",
       roundOver: true,
+      gameOver: state.totalRounds > 0 && state.round >= state.totalRounds,
       scoreDeltas,
       result: { spyId: state.spyId, location: state.location, votes, spyCaught },
     };

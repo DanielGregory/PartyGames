@@ -9,6 +9,8 @@ type ConnectFourView = {
   currentTurn: string | null;
   winner: string | null;
   isDraw: boolean;
+  columns: number;
+  rows: number;
   cells: (string | null)[];
   players: string[];
   isYourTurn: boolean;
@@ -40,11 +42,11 @@ export function ConnectFourGame({ game, players, send }: GameProps) {
       </Card>
 
       <Board
-        columns={7}
+        columns={view.columns}
         cells={view.cells}
         disabled={!view.isYourTurn || view.stage === "reveal"}
         onCellClick={(_, index) =>
-          send({ type: "game_action", payload: { type: "drop", column: index % 7 } })
+          send({ type: "game_action", payload: { type: "drop", column: index % view.columns } })
         }
         renderCell={(cell) => (
           <span className={`h-[78%] w-[78%] rounded-full ${colorFor(cell) ?? "bg-background/40"}`} />

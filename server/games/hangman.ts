@@ -2,25 +2,33 @@ import type { BaseGameState, GameModule, Player } from "../types";
 import { HANGMAN_WORDS, pickUnused } from "./content";
 import { advanceTurn, currentPlayerId, initTurnOrder, isPlayersTurn, type TurnState } from "../turnManager";
 
-const MAX_WRONG_GUESSES = 6;
+const DEFAULT_MAX_WRONG_GUESSES = 6;
 
 export type HangmanState = BaseGameState & {
   stage: "guessing" | "reveal";
   word: string;
   usedIndices: number[];
+  maxWrongGuesses: number;
   guessedLetters: string[];
   wrongGuesses: string[];
   turn: TurnState;
   won: boolean | null;
 };
 
-function startRound(prev: HangmanState | null, players: Player[]): HangmanState {
+function startRound(
+  prev: HangmanState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): HangmanState {
   const usedIndices = prev?.usedIndices ?? [];
   const { item, index } = pickUnused(HANGMAN_WORDS, usedIndices);
   const turn = initTurnOrder(
     players.map((p) => p.id),
     { shuffle: true }
   );
+  const maxWrongGuesses =
+    prev?.maxWrongGuesses ??
+    (typeof config?.maxWrongGuesses === "number" ? config.maxWrongGuesses : DEFAULT_MAX_WRONG_GUESSES);
 
   return {
     stage: "guessing",
@@ -30,6 +38,7 @@ function startRound(prev: HangmanState | null, players: Player[]): HangmanState 
     scoreDeltas: {},
     word: item.toUpperCase(),
     usedIndices: [...usedIndices, index],
+    maxWrongGuesses,
     guessedLetters: [],
     wrongGuesses: [],
     turn,
@@ -67,7 +76,7 @@ function applyAction(
     return { ...state, guessedLetters, stage: "reveal", roundOver: true, won: true, scoreDeltas };
   }
 
-  if (!isHit && wrongGuesses.length >= MAX_WRONG_GUESSES) {
+  if (!isHit && wrongGuesses.length >= state.maxWrongGuesses) {
     return { ...state, guessedLetters, wrongGuesses, stage: "reveal", roundOver: true, won: false, scoreDeltas };
   }
 
@@ -92,7 +101,7 @@ function redactState(state: HangmanState, forPlayerId: string): BaseGameState & 
     scoreDeltas: state.scoreDeltas,
     guessedLetters: state.guessedLetters,
     wrongGuesses: state.wrongGuesses,
-    maxWrongGuesses: MAX_WRONG_GUESSES,
+    maxWrongGuesses: state.maxWrongGuesses,
     currentTurn,
     isYourTurn: currentTurn === forPlayerId,
     pattern: pattern(state.word, state.guessedLetters),

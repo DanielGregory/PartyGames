@@ -1,22 +1,37 @@
 import type { BaseBoardGameState, GameModule, Player } from "../types";
 import { advanceTurn, currentPlayerId, initTurnOrder, isPlayersTurn, type TurnState } from "../turnManager";
 
-const COLUMNS = 7;
-const ROWS = 6;
-const CELL_COUNT = COLUMNS * ROWS;
+const BOARD_PRESETS: Record<string, { columns: number; rows: number }> = {
+  compact: { columns: 6, rows: 5 },
+  classic: { columns: 7, rows: 6 },
+  large: { columns: 9, rows: 7 },
+};
+const DEFAULT_PRESET = "classic";
 
 export type ConnectFourState = BaseBoardGameState & {
   stage: "playing" | "reveal";
+  columns: number;
+  rows: number;
   cells: (string | null)[]; // row-major, index 0 = top-left
   turn: TurnState;
   isDraw: boolean;
 };
 
-function startRound(prev: ConnectFourState | null, players: Player[]): ConnectFourState {
+function boardPreset(config?: Record<string, unknown>): { columns: number; rows: number } {
+  const key = typeof config?.boardSize === "string" ? config.boardSize : DEFAULT_PRESET;
+  return BOARD_PRESETS[key] ?? BOARD_PRESETS[DEFAULT_PRESET];
+}
+
+function startRound(
+  prev: ConnectFourState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): ConnectFourState {
   const turn = initTurnOrder(
     players.map((p) => p.id),
     { shuffle: true }
   );
+  const { columns, rows } = prev ? { columns: prev.columns, rows: prev.rows } : boardPreset(config);
 
   return {
     stage: "playing",
@@ -26,15 +41,17 @@ function startRound(prev: ConnectFourState | null, players: Player[]): ConnectFo
     scoreDeltas: {},
     currentTurn: currentPlayerId(turn),
     winner: null,
-    cells: new Array(CELL_COUNT).fill(null),
+    columns,
+    rows,
+    cells: new Array(columns * rows).fill(null),
     turn,
     isDraw: false,
   };
 }
 
-function columnLandingRow(cells: (string | null)[], column: number): number | null {
-  for (let row = ROWS - 1; row >= 0; row--) {
-    if (cells[row * COLUMNS + column] === null) return row;
+function columnLandingRow(cells: (string | null)[], columns: number, rows: number, column: number): number | null {
+  for (let row = rows - 1; row >= 0; row--) {
+    if (cells[row * columns + column] === null) return row;
   }
   return null;
 }
@@ -46,8 +63,14 @@ const DIRECTIONS: [number, number][] = [
   [1, -1],
 ];
 
-function wins4InARow(cells: (string | null)[], row: number, column: number): boolean {
-  const player = cells[row * COLUMNS + column];
+function wins4InARow(
+  cells: (string | null)[],
+  columns: number,
+  rows: number,
+  row: number,
+  column: number
+): boolean {
+  const player = cells[row * columns + column];
   if (!player) return false;
 
   for (const [dr, dc] of DIRECTIONS) {
@@ -55,7 +78,7 @@ function wins4InARow(cells: (string | null)[], row: number, column: number): boo
 
     let r = row + dr;
     let c = column + dc;
-    while (r >= 0 && r < ROWS && c >= 0 && c < COLUMNS && cells[r * COLUMNS + c] === player) {
+    while (r >= 0 && r < rows && c >= 0 && c < columns && cells[r * columns + c] === player) {
       count++;
       r += dr;
       c += dc;
@@ -63,7 +86,7 @@ function wins4InARow(cells: (string | null)[], row: number, column: number): boo
 
     r = row - dr;
     c = column - dc;
-    while (r >= 0 && r < ROWS && c >= 0 && c < COLUMNS && cells[r * COLUMNS + c] === player) {
+    while (r >= 0 && r < rows && c >= 0 && c < columns && cells[r * columns + c] === player) {
       count++;
       r -= dr;
       c -= dc;
@@ -84,15 +107,15 @@ function applyAction(
   const action = payload as { type: string; column?: number };
   if (action.type !== "drop" || state.stage !== "playing") return state;
   if (!isPlayersTurn(state.turn, playerId)) return state;
-  if (typeof action.column !== "number" || action.column < 0 || action.column >= COLUMNS) return state;
+  if (typeof action.column !== "number" || action.column < 0 || action.column >= state.columns) return state;
 
-  const row = columnLandingRow(state.cells, action.column);
+  const row = columnLandingRow(state.cells, state.columns, state.rows, action.column);
   if (row === null) return state;
 
   const cells = [...state.cells];
-  cells[row * COLUMNS + action.column] = playerId;
+  cells[row * state.columns + action.column] = playerId;
 
-  if (wins4InARow(cells, row, action.column)) {
+  if (wins4InARow(cells, state.columns, state.rows, row, action.column)) {
     return {
       ...state,
       cells,
@@ -126,6 +149,8 @@ function redactState(state: ConnectFourState, forPlayerId: string): BaseBoardGam
     currentTurn: state.currentTurn,
     winner: state.winner,
     isDraw: state.isDraw,
+    columns: state.columns,
+    rows: state.rows,
     cells: state.cells,
     players: state.turn.order,
     isYourTurn: state.currentTurn === forPlayerId,

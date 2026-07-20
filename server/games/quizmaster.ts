@@ -5,6 +5,7 @@ const MAX_ANSWER_LEN = 80;
 
 export type QuizMasterState = BaseGameState & {
   stage: "ask" | "guess" | "judge" | "reveal";
+  totalRounds: number; // 0 means no cap - host ends the game manually
   askerId: string;
   askedHistory: string[];
   question: string | null;
@@ -21,8 +22,13 @@ function pickNextAsker(players: Player[], askedHistory: string[]): { askerId: st
   return { askerId: asker.id, history };
 }
 
-function startRound(prev: QuizMasterState | null, players: Player[]): QuizMasterState {
+function startRound(
+  prev: QuizMasterState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): QuizMasterState {
   const { askerId, history } = pickNextAsker(players, prev?.askedHistory ?? []);
+  const totalRounds = prev?.totalRounds ?? (typeof config?.rounds === "number" ? config.rounds : 0);
 
   return {
     stage: "ask",
@@ -30,6 +36,7 @@ function startRound(prev: QuizMasterState | null, players: Player[]): QuizMaster
     roundOver: false,
     gameOver: false,
     scoreDeltas: {},
+    totalRounds,
     askerId,
     askedHistory: history,
     question: null,
@@ -109,7 +116,13 @@ function applyAction(
     if (correctCount > 0) {
       scoreDeltas[state.askerId] = (scoreDeltas[state.askerId] ?? 0) + correctCount;
     }
-    return { ...state, stage: "reveal", roundOver: true, scoreDeltas };
+    return {
+      ...state,
+      stage: "reveal",
+      roundOver: true,
+      gameOver: state.totalRounds > 0 && state.round >= state.totalRounds,
+      scoreDeltas,
+    };
   }
 
   return state;

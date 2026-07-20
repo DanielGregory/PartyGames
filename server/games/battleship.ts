@@ -3,20 +3,29 @@ import { advanceTurn, currentPlayerId, initTurnOrder, isPlayersTurn, type TurnSt
 
 const BOARD_SIZE = 8;
 const CELL_COUNT = BOARD_SIZE * BOARD_SIZE;
-const SHIP_LENGTHS = [4, 3, 2];
+const FLEETS: Record<string, number[]> = {
+  quick: [4, 3, 2],
+  classic: [5, 4, 3, 3, 2],
+};
+const DEFAULT_FLEET = "quick";
 
 type Shot = { cell: number; hit: boolean };
 
 export type BattleshipState = BaseBoardGameState & {
   stage: "placement" | "battle" | "reveal";
+  shipLengths: number[];
   ships: Record<string, number[][]>; // playerId -> list of ships, each a list of cell indices
-  placementProgress: Record<string, number>; // playerId -> index into SHIP_LENGTHS for their next ship
+  placementProgress: Record<string, number>; // playerId -> index into shipLengths for their next ship
   shots: Record<string, Shot[]>; // playerId -> shots that player has fired (at their opponent)
   shotLog: { shooterId: string; cell: number; hit: boolean }[];
   turn: TurnState;
 };
 
-function startRound(prev: BattleshipState | null, players: Player[]): BattleshipState {
+function startRound(
+  prev: BattleshipState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): BattleshipState {
   const ids = players.map((p) => p.id);
   const ships: Record<string, number[][]> = {};
   const placementProgress: Record<string, number> = {};
@@ -26,6 +35,8 @@ function startRound(prev: BattleshipState | null, players: Player[]): Battleship
     placementProgress[id] = 0;
     shots[id] = [];
   }
+  const fleetKey = typeof config?.fleet === "string" ? config.fleet : DEFAULT_FLEET;
+  const shipLengths = prev?.shipLengths ?? FLEETS[fleetKey] ?? FLEETS[DEFAULT_FLEET];
 
   return {
     stage: "placement",
@@ -35,6 +46,7 @@ function startRound(prev: BattleshipState | null, players: Player[]): Battleship
     scoreDeltas: {},
     currentTurn: null,
     winner: null,
+    shipLengths,
     ships,
     placementProgress,
     shots,
@@ -78,18 +90,18 @@ function applyAction(
 
   if (action.type === "place_ship" && state.stage === "placement") {
     const progress = state.placementProgress[playerId];
-    if (progress === undefined || progress >= SHIP_LENGTHS.length) return state;
+    if (progress === undefined || progress >= state.shipLengths.length) return state;
     if (typeof action.cell !== "number" || action.cell < 0 || action.cell >= CELL_COUNT) return state;
     const orientation = action.orientation === "v" ? "v" : "h";
 
-    const cells = shipCells(action.cell, SHIP_LENGTHS[progress], orientation);
+    const cells = shipCells(action.cell, state.shipLengths[progress], orientation);
     if (!cells || overlaps(cells, state.ships[playerId])) return state;
 
     const ships = { ...state.ships, [playerId]: [...state.ships[playerId], cells] };
     const placementProgress = { ...state.placementProgress, [playerId]: progress + 1 };
 
     const everyoneDone = Object.keys(placementProgress).every(
-      (id) => placementProgress[id] >= SHIP_LENGTHS.length
+      (id) => placementProgress[id] >= state.shipLengths.length
     );
 
     if (everyoneDone) {
@@ -163,7 +175,7 @@ function redactState(state: BattleshipState, forPlayerId: string): BaseBoardGame
     currentTurn: state.currentTurn,
     winner: state.winner,
     isYourTurn: state.currentTurn === forPlayerId,
-    shipLengths: SHIP_LENGTHS,
+    shipLengths: state.shipLengths,
     boardSize: BOARD_SIZE,
     shotLog: state.shotLog,
   };
@@ -172,9 +184,9 @@ function redactState(state: BattleshipState, forPlayerId: string): BaseBoardGame
     return {
       ...base,
       yourShips: state.ships[forPlayerId] ?? [],
-      nextShipLength: SHIP_LENGTHS[state.placementProgress[forPlayerId] ?? SHIP_LENGTHS.length] ?? null,
-      youReady: (state.placementProgress[forPlayerId] ?? 0) >= SHIP_LENGTHS.length,
-      opponentReady: opponentId ? (state.placementProgress[opponentId] ?? 0) >= SHIP_LENGTHS.length : false,
+      nextShipLength: state.shipLengths[state.placementProgress[forPlayerId] ?? state.shipLengths.length] ?? null,
+      youReady: (state.placementProgress[forPlayerId] ?? 0) >= state.shipLengths.length,
+      opponentReady: opponentId ? (state.placementProgress[opponentId] ?? 0) >= state.shipLengths.length : false,
     };
   }
 

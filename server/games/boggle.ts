@@ -4,12 +4,14 @@ import { isValidWord } from "../wordbank";
 
 const GRID_SIZE = 4;
 const CELL_COUNT = GRID_SIZE * GRID_SIZE;
-const ROUND_MS = 3 * 60 * 1000;
-const MIN_WORD_LENGTH = 3;
+const DEFAULT_ROUND_MS = 3 * 60 * 1000;
+const DEFAULT_MIN_WORD_LENGTH = 3;
 
 export type BoggleState = BaseGameState & {
   stage: "playing" | "reveal";
   grid: string[]; // 16 cells, each "A".."Z" or "QU"
+  roundMs: number;
+  minWordLength: number;
   timerEndsAt: number;
   foundWords: Record<string, string[]>; // word (lowercase) -> playerIds who found it
 };
@@ -78,8 +80,18 @@ function pointsForLength(length: number): number {
   return 11;
 }
 
-function startRound(prev: BoggleState | null, players: Player[]): BoggleState {
+function startRound(
+  prev: BoggleState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): BoggleState {
   void players;
+  const roundMs =
+    prev?.roundMs ?? (typeof config?.roundMinutes === "number" ? config.roundMinutes * 60 * 1000 : DEFAULT_ROUND_MS);
+  const minWordLength =
+    prev?.minWordLength ??
+    (typeof config?.minWordLength === "number" ? config.minWordLength : DEFAULT_MIN_WORD_LENGTH);
+
   return {
     stage: "playing",
     round: (prev?.round ?? 0) + 1,
@@ -87,7 +99,9 @@ function startRound(prev: BoggleState | null, players: Player[]): BoggleState {
     gameOver: false,
     scoreDeltas: {},
     grid: rollGrid(),
-    timerEndsAt: Date.now() + ROUND_MS,
+    roundMs,
+    minWordLength,
+    timerEndsAt: Date.now() + roundMs,
     foundWords: {},
   };
 }
@@ -111,7 +125,7 @@ function applyAction(state: BoggleState, playerId: string, payload: unknown): Bo
 
   if (action.type === "submit_word" && state.stage === "playing") {
     const word = (action.word ?? "").trim().toLowerCase();
-    if (word.length < MIN_WORD_LENGTH) return state;
+    if (word.length < state.minWordLength) return state;
     if (state.foundWords[word]?.includes(playerId)) return state;
     if (!isValidWord(word)) return state;
     if (!canFormWord(state.grid, word)) return state;

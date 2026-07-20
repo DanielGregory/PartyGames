@@ -1,26 +1,43 @@
 import type { BaseGameState, GameModule, Player } from "../types";
 import { isValidWord, randomWords } from "../wordbank";
 
-const WORD_LENGTH = 5;
-const MAX_GUESSES = 6;
-const ROUND_MS = 3 * 60 * 1000;
-const POINTS_BY_GUESS_COUNT = [6, 5, 4, 3, 2, 1];
+const DEFAULT_WORD_LENGTH = 5;
+const DEFAULT_ROUND_MS = 3 * 60 * 1000;
+// Fewer guesses for shorter words, more for longer - one more try than the
+// word's own length, matching classic Wordle's 6-tries-for-5-letters ratio.
+function maxGuessesFor(wordLength: number): number {
+  return wordLength + 1;
+}
+function pointsTable(maxGuesses: number): number[] {
+  return Array.from({ length: maxGuesses }, (_, i) => maxGuesses - i);
+}
 
 export type LetterState = "green" | "yellow" | "gray";
 export type Guess = { word: string; feedback: LetterState[] };
 
 export type WordleState = BaseGameState & {
   stage: "guessing" | "reveal";
+  wordLength: number;
+  maxGuesses: number;
   secret: string;
   usedWords: string[];
+  roundMs: number;
   timerEndsAt: number;
   guesses: Record<string, Guess[]>;
 };
 
-function startRound(prev: WordleState | null, players: Player[]): WordleState {
+function startRound(
+  prev: WordleState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): WordleState {
   void players;
   const usedWords = prev?.usedWords ?? [];
-  const [secret] = randomWords(WORD_LENGTH, WORD_LENGTH, 1, usedWords);
+  const wordLength =
+    prev?.wordLength ?? (typeof config?.wordLength === "number" ? config.wordLength : DEFAULT_WORD_LENGTH);
+  const roundMs =
+    prev?.roundMs ?? (typeof config?.roundMinutes === "number" ? config.roundMinutes * 60 * 1000 : DEFAULT_ROUND_MS);
+  const [secret] = randomWords(wordLength, wordLength, 1, usedWords);
 
   return {
     stage: "guessing",
@@ -28,9 +45,12 @@ function startRound(prev: WordleState | null, players: Player[]): WordleState {
     roundOver: false,
     gameOver: false,
     scoreDeltas: {},
+    wordLength,
+    maxGuesses: maxGuessesFor(wordLength),
     secret,
     usedWords: [...usedWords, secret],
-    timerEndsAt: Date.now() + ROUND_MS,
+    roundMs,
+    timerEndsAt: Date.now() + roundMs,
     guesses: {},
   };
 }
@@ -58,20 +78,17 @@ export function computeFeedback(guess: string, secret: string): LetterState[] {
   return feedback;
 }
 
-function pointsForGuessCount(count: number): number {
-  return POINTS_BY_GUESS_COUNT[count - 1] ?? 0;
-}
-
-function isDone(guesses: Guess[], secret: string): boolean {
-  return guesses.some((g) => g.word === secret) || guesses.length >= MAX_GUESSES;
+function isDone(guesses: Guess[], secret: string, maxGuesses: number): boolean {
+  return guesses.some((g) => g.word === secret) || guesses.length >= maxGuesses;
 }
 
 function finalizeRound(state: WordleState, players: Player[]): WordleState {
+  const points = pointsTable(state.maxGuesses);
   const scoreDeltas: Record<string, number> = {};
   for (const p of players) {
     const guesses = state.guesses[p.id] ?? [];
     const solvedAt = guesses.findIndex((g) => g.word === state.secret);
-    if (solvedAt !== -1) scoreDeltas[p.id] = pointsForGuessCount(solvedAt + 1);
+    if (solvedAt !== -1) scoreDeltas[p.id] = points[solvedAt] ?? 0;
   }
   return { ...state, stage: "reveal", roundOver: true, scoreDeltas };
 }
@@ -91,8 +108,8 @@ function applyAction(
   if (action.type === "guess" && state.stage === "guessing") {
     const word = (action.word ?? "").trim().toLowerCase();
     const myGuesses = state.guesses[playerId] ?? [];
-    if (isDone(myGuesses, state.secret)) return state;
-    if (word.length !== WORD_LENGTH) return state;
+    if (isDone(myGuesses, state.secret, state.maxGuesses)) return state;
+    if (word.length !== state.wordLength) return state;
     if (!isValidWord(word)) return state;
 
     const feedback = computeFeedback(word, state.secret);
@@ -101,7 +118,7 @@ function applyAction(
 
     const allDone = players
       .filter((p) => p.connected)
-      .every((p) => isDone(updated.guesses[p.id] ?? [], state.secret));
+      .every((p) => isDone(updated.guesses[p.id] ?? [], state.secret, state.maxGuesses));
 
     return allDone ? finalizeRound(updated, players) : updated;
   }
@@ -111,7 +128,9 @@ function applyAction(
 
 function redactState(state: WordleState, forPlayerId: string): BaseGameState & Record<string, unknown> {
   const myGuesses = state.guesses[forPlayerId] ?? [];
-  const finishedCount = Object.values(state.guesses).filter((g) => isDone(g, state.secret)).length;
+  const finishedCount = Object.values(state.guesses).filter((g) =>
+    isDone(g, state.secret, state.maxGuesses)
+  ).length;
 
   const base = {
     stage: state.stage,
@@ -119,10 +138,11 @@ function redactState(state: WordleState, forPlayerId: string): BaseGameState & R
     roundOver: state.roundOver,
     gameOver: state.gameOver,
     scoreDeltas: state.scoreDeltas,
+    wordLength: state.wordLength,
     timerEndsAt: state.timerEndsAt,
     yourGuesses: myGuesses,
-    guessesRemaining: MAX_GUESSES - myGuesses.length,
-    maxGuesses: MAX_GUESSES,
+    guessesRemaining: state.maxGuesses - myGuesses.length,
+    maxGuesses: state.maxGuesses,
     solved: myGuesses.some((g) => g.word === state.secret),
     finishedCount,
   };
@@ -142,7 +162,7 @@ export const wordleModule: GameModule<WordleState> = {
   meta: {
     id: "wordle",
     label: "Wordle",
-    description: "Guess the secret 5-letter word in 6 tries. Fewer guesses score more.",
+    description: "Guess the secret word in one more try than its length. Fewer guesses score more.",
     minPlayers: 2,
   },
   next: startRound,

@@ -4,15 +4,21 @@ import { MOST_LIKELY_PROMPTS, pickUnused } from "./content";
 export type MostLikelyState = BaseGameState & {
   stage: "vote" | "reveal";
   usedIndices: number[];
+  totalRounds: number; // 0 means no cap - host ends the game manually
   prompt: string;
   votes: Record<string, string>;
   winners: string[];
 };
 
-function startRound(prev: MostLikelyState | null, players: Player[]): MostLikelyState {
+function startRound(
+  prev: MostLikelyState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): MostLikelyState {
   void players;
   const usedIndices = prev?.usedIndices ?? [];
   const { item, index } = pickUnused(MOST_LIKELY_PROMPTS, usedIndices);
+  const totalRounds = prev?.totalRounds ?? (typeof config?.rounds === "number" ? config.rounds : 0);
 
   return {
     stage: "vote",
@@ -21,6 +27,7 @@ function startRound(prev: MostLikelyState | null, players: Player[]): MostLikely
     gameOver: false,
     scoreDeltas: {},
     usedIndices: [...usedIndices, index],
+    totalRounds,
     prompt: item,
     votes: {},
     winners: [],
@@ -52,7 +59,15 @@ function applyAction(state: MostLikelyState, playerId: string, payload: unknown,
       scoreDeltas[id] = (scoreDeltas[id] ?? 0) + 1;
     }
 
-    return { ...state, votes, stage: "reveal", roundOver: true, scoreDeltas, winners };
+    return {
+      ...state,
+      votes,
+      stage: "reveal",
+      roundOver: true,
+      gameOver: state.totalRounds > 0 && state.round >= state.totalRounds,
+      scoreDeltas,
+      winners,
+    };
   }
 
   return state;

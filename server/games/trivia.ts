@@ -7,7 +7,8 @@ const DEFAULT_TOTAL_ROUNDS = 5;
 export type TriviaState = BaseGameState & {
   stage: "question" | "reveal";
   usedIndices: number[];
-  totalRounds: number;
+  totalRounds: number; // 0 means no cap - host ends the game manually
+  answerMs: number;
   timerEndsAt: number;
   question: string;
   choices: string[];
@@ -24,8 +25,9 @@ function startRound(
   const usedIndices = prev?.usedIndices ?? [];
   const { item, index } = pickUnused(TRIVIA_QUESTIONS, usedIndices);
   const totalRounds =
-    prev?.totalRounds ??
-    (typeof config?.totalRounds === "number" ? config.totalRounds : DEFAULT_TOTAL_ROUNDS);
+    prev?.totalRounds ?? (typeof config?.rounds === "number" ? config.rounds : DEFAULT_TOTAL_ROUNDS);
+  const answerMs =
+    prev?.answerMs ?? (typeof config?.timerSeconds === "number" ? config.timerSeconds * 1000 : ANSWER_MS);
 
   return {
     stage: "question",
@@ -35,7 +37,8 @@ function startRound(
     scoreDeltas: {},
     usedIndices: [...usedIndices, index],
     totalRounds,
-    timerEndsAt: Date.now() + ANSWER_MS,
+    answerMs,
+    timerEndsAt: Date.now() + answerMs,
     question: item.question,
     choices: item.choices,
     correctIndex: item.correctIndex,
@@ -56,7 +59,7 @@ function reveal(state: TriviaState, answers: Record<string, number>): TriviaStat
     answers,
     stage: "reveal",
     roundOver: true,
-    gameOver: state.round >= state.totalRounds,
+    gameOver: state.totalRounds > 0 && state.round >= state.totalRounds,
     scoreDeltas,
   };
 }

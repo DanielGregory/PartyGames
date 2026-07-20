@@ -1,18 +1,29 @@
 import type { BaseBoardGameState, GameModule, Player } from "../types";
-import { GUESS_WHO_CHARACTERS } from "./content";
+import { GUESS_WHO_CHARACTERS, shuffled } from "./content";
 import { advanceTurn, currentPlayerId, initTurnOrder, isPlayersTurn, type TurnState } from "../turnManager";
+
+const DEFAULT_ROSTER_SIZE = GUESS_WHO_CHARACTERS.length;
 
 export type GuessWhoState = BaseBoardGameState & {
   stage: "asking" | "reveal";
+  characterPool: { id: string; name: string; emoji: string }[];
   secretCharacter: Record<string, string>; // playerId -> characterId (hidden from opponent)
   eliminated: Record<string, string[]>; // playerId -> characterIds they've personally crossed off
   turn: TurnState;
   wrongGuess: { playerId: string; characterId: string } | null;
 };
 
-function startRound(prev: GuessWhoState | null, players: Player[]): GuessWhoState {
+function startRound(
+  prev: GuessWhoState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): GuessWhoState {
   const ids = players.map((p) => p.id);
-  const pool = [...GUESS_WHO_CHARACTERS];
+  const rosterSize =
+    prev?.characterPool.length ??
+    (typeof config?.rosterSize === "number" ? config.rosterSize : DEFAULT_ROSTER_SIZE);
+  const characterPool = shuffled(GUESS_WHO_CHARACTERS).slice(0, Math.min(rosterSize, GUESS_WHO_CHARACTERS.length));
+  const pool = [...characterPool];
   const secretCharacter: Record<string, string> = {};
   const eliminated: Record<string, string[]> = {};
 
@@ -33,6 +44,7 @@ function startRound(prev: GuessWhoState | null, players: Player[]): GuessWhoStat
     scoreDeltas: {},
     currentTurn: currentPlayerId(turn),
     winner: null,
+    characterPool,
     secretCharacter,
     eliminated,
     turn,
@@ -108,7 +120,7 @@ function redactState(state: GuessWhoState, forPlayerId: string): BaseBoardGameSt
     currentTurn: state.currentTurn,
     winner: state.winner,
     isYourTurn: state.currentTurn === forPlayerId,
-    characterPool: GUESS_WHO_CHARACTERS,
+    characterPool: state.characterPool,
     yourCharacter: state.secretCharacter[forPlayerId] ?? null,
     eliminated: state.eliminated[forPlayerId] ?? [],
   };
