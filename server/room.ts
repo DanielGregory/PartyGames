@@ -31,6 +31,7 @@ type RoomRow = {
   round: number;
   game_state: (BaseGameState & Record<string, unknown>) | null;
   players: ServerPlayer[];
+  active_players: string[] | null;
 };
 
 function defaultRoom(code: string): RoomRow {
@@ -43,7 +44,17 @@ function defaultRoom(code: string): RoomRow {
     round: 0,
     game_state: null,
     players: [],
+    active_players: null,
   };
+}
+
+/** The players a game module's next()/action() should see: everyone, unless
+ * active_players narrowed it down to a subset (a 2-player board game picked
+ * out of a bigger room). */
+function activeRoster(room: RoomRow, players: Player[]): Player[] {
+  if (!room.active_players) return players;
+  const active = room.active_players;
+  return players.filter((p) => active.includes(p.id));
 }
 
 async function loadRoom(code: string): Promise<RoomRow> {
@@ -78,6 +89,7 @@ function publicState(room: RoomRow, players: Player[]): PublicRoomState {
     status: room.status,
     selectedGame: room.selected_game,
     round: room.round,
+    activePlayers: room.active_players,
   };
 }
 
@@ -185,15 +197,34 @@ export async function handleMessage(
       if (connectedPlayers.length < mod.meta.minPlayers) {
         throw new RoomActionError(`${mod.meta.label} needs at least ${mod.meta.minPlayers} players.`);
       }
-      if (mod.meta.maxPlayers !== undefined && connectedPlayers.length > mod.meta.maxPlayers) {
-        throw new RoomActionError(
-          mod.meta.maxPlayers === mod.meta.minPlayers
-            ? `${mod.meta.label} is for exactly ${mod.meta.maxPlayers} players.`
-            : `${mod.meta.label} supports at most ${mod.meta.maxPlayers} players.`
-        );
+
+      // The room only needs to narrow down to a subset (rest spectate) when
+      // there are more connected players than the mode allows - that's not
+      // an error, it just means the host has to pick who's playing.
+      const maxPlayers = mod.meta.maxPlayers;
+      if (maxPlayers !== undefined && connectedPlayers.length > maxPlayers) {
+        const activeIds = message.activePlayerIds ?? [];
+        const uniqueIds = new Set(activeIds);
+        const allConnected = activeIds.every((id) => connectedPlayers.some((p) => p.id === id));
+        if (
+          uniqueIds.size !== activeIds.length ||
+          !allConnected ||
+          activeIds.length < mod.meta.minPlayers ||
+          activeIds.length > maxPlayers
+        ) {
+          throw new RoomActionError(
+            `Pick ${mod.meta.minPlayers === maxPlayers ? "exactly" : "between"} ${mod.meta.minPlayers}${
+              mod.meta.minPlayers === maxPlayers ? "" : `-${maxPlayers}`
+            } connected players to play.`
+          );
+        }
+        room.active_players = activeIds;
+      } else {
+        room.active_players = null;
       }
+
       room.game_id = mod.meta.id;
-      room.game_state = mod.next(null, players, message.config);
+      room.game_state = mod.next(null, activeRoster(room, players), message.config);
       room.status = "playing";
       room.round = room.game_state.round;
       break;
@@ -201,9 +232,12 @@ export async function handleMessage(
 
     case "game_action": {
       if (room.status !== "playing" || !room.game_id || !room.game_state) break;
+      if (room.active_players && !room.active_players.includes(playerId)) {
+        throw new RoomActionError("You're spectating this game.");
+      }
       const mod = gameRegistry[room.game_id];
       const wasRoundOver = room.game_state.roundOver;
-      const nextGame = mod.action(room.game_state, playerId, message.payload, players);
+      const nextGame = mod.action(room.game_state, playerId, message.payload, activeRoster(room, players));
       room.game_state = nextGame;
       if (!wasRoundOver && nextGame.roundOver) {
         for (const [pid, delta] of Object.entries(nextGame.scoreDeltas)) {
@@ -218,13 +252,14 @@ export async function handleMessage(
       if (!isHost || room.status !== "playing" || !room.game_id || !room.game_state) break;
       if (!room.game_state.roundOver || room.game_state.gameOver) break;
       const mod = gameRegistry[room.game_id];
-      room.game_state = mod.next(room.game_state, players);
+      room.game_state = mod.next(room.game_state, activeRoster(room, players));
       room.round = room.game_state.round;
       break;
     }
 
     case "end_game": {
       if (!isHost) break;
+      room.active_players = null;
       room.status = "lobby";
       room.game_id = null;
       room.game_state = null;

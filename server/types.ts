@@ -49,6 +49,13 @@ export type PublicRoomState = {
   status: RoomStatus;
   selectedGame: GameId | null;
   round: number;
+  // Set only when the selected game's maxPlayers forced the host to choose
+  // a subset of the room to play (e.g. 5 people in the room, a 2-player
+  // board game selected). Null means everyone in the room is playing - the
+  // case for all five current modes, which have no maxPlayers. Players not
+  // in this list when it's set can watch (still get redact()'d state) but
+  // their game_action messages are rejected server-side.
+  activePlayers: string[] | null;
 };
 
 // Message client -> server, posted to /api/rooms/[code]/messages.
@@ -56,7 +63,7 @@ export type PublicRoomState = {
 // the private-channel token the client needs before it can receive anything.
 export type ClientMessage =
   | { type: "select_game"; gameId: GameId }
-  | { type: "start_game"; config?: Record<string, unknown> }
+  | { type: "start_game"; config?: Record<string, unknown>; activePlayerIds?: string[] }
   | { type: "game_action"; payload: unknown }
   | { type: "next_round" }
   | { type: "end_game" };

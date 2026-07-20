@@ -19,22 +19,50 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
   const connectedCount = room.players.filter((p) => p.connected).length;
   const selected = room.selectedGame ? GAME_LIST.find((g) => g.id === room.selectedGame) : null;
   const tooFew = selected ? connectedCount < selected.minPlayers : false;
-  const tooMany = selected?.maxPlayers !== undefined ? connectedCount > selected.maxPlayers : false;
-  const canStart = Boolean(selected) && !tooFew && !tooMany;
+  // A cap doesn't block starting - it just means the host has to pick who
+  // plays and everyone else watches.
+  const needsSelection = selected?.maxPlayers !== undefined && connectedCount > selected.maxPlayers;
   const [triviaRounds, setTriviaRounds] = useState(5);
+  const [activeIds, setActiveIds] = useState<string[]>([]);
+
+  // Reset the player picker during render (not an effect) the moment the
+  // host picks a different game, rather than carrying over a stale
+  // selection from whatever was picked before.
+  const [lastSelectedGame, setLastSelectedGame] = useState(room.selectedGame);
+  if (room.selectedGame !== lastSelectedGame) {
+    setLastSelectedGame(room.selectedGame);
+    setActiveIds([]);
+  }
+
+  const selectionValid =
+    !needsSelection ||
+    (selected && activeIds.length >= selected.minPlayers && activeIds.length <= (selected.maxPlayers ?? Infinity));
+  const canStart = Boolean(selected) && !tooFew && Boolean(selectionValid);
+
+  function togglePlayer(id: string) {
+    setActiveIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (selected?.maxPlayers !== undefined && prev.length >= selected.maxPlayers) return prev;
+      return [...prev, id];
+    });
+  }
 
   function startGame() {
-    if (room.selectedGame === "trivia") {
-      send({ type: "start_game", config: { totalRounds: triviaRounds } });
-    } else {
-      send({ type: "start_game" });
-    }
+    send({
+      type: "start_game",
+      config: room.selectedGame === "trivia" ? { totalRounds: triviaRounds } : undefined,
+      activePlayerIds: needsSelection ? activeIds : undefined,
+    });
   }
 
   function startButtonLabel(): string {
     if (!selected) return "Pick a game to start";
     if (tooFew) return `Need ${selected.minPlayers}+ players`;
-    if (tooMany) return `Too many players (max ${selected.maxPlayers})`;
+    if (needsSelection && !selectionValid) {
+      return selected.minPlayers === selected.maxPlayers
+        ? `Pick ${selected.minPlayers} players`
+        : `Pick ${selected.minPlayers}-${selected.maxPlayers} players`;
+    }
     return `Start ${selected.label}`;
   }
 
@@ -98,6 +126,35 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {needsSelection && selected && (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-semibold text-muted">
+                Choose {playerRangeLabel(selected).toLowerCase()} to play ({activeIds.length} selected)
+              </p>
+              <div className="flex flex-col gap-2">
+                {room.players
+                  .filter((p) => p.connected)
+                  .map((p) => {
+                    const isPicked = activeIds.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => togglePlayer(p.id)}
+                        className={`rounded-xl border px-4 py-3 text-left font-medium transition-colors ${
+                          isPicked
+                            ? "border-accent bg-accent/10"
+                            : "border-card-border bg-card hover:border-accent/50"
+                        }`}
+                      >
+                        {p.name} {p.id === you.id && <span className="text-muted">(you)</span>}
+                      </button>
+                    );
+                  })}
+              </div>
+              <p className="text-center text-xs text-muted">Everyone else will spectate.</p>
             </div>
           )}
 
