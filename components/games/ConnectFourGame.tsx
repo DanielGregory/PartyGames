@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Board } from "../Board";
 import { Card } from "../ui";
 import { GameProps, nameOf } from "./types";
@@ -20,6 +21,24 @@ const DISC_COLORS = ["bg-red-500", "bg-yellow-400"];
 
 export function ConnectFourGame({ game, players, send }: GameProps) {
   const view = game as unknown as ConnectFourView;
+  const prevCellsRef = useRef<(string | null)[] | null>(null);
+  const [justDropped, setJustDropped] = useState<number | null>(null);
+
+  // Animate only the disc that was just placed, by diffing against the
+  // previous cells array - re-rendering an already-applied animation class
+  // doesn't replay it, so this stays stable until the next drop.
+  useEffect(() => {
+    const prev = prevCellsRef.current;
+    if (prev) {
+      for (let i = 0; i < view.cells.length; i++) {
+        if (prev[i] === null && view.cells[i] !== null) {
+          setJustDropped(i);
+          break;
+        }
+      }
+    }
+    prevCellsRef.current = view.cells;
+  }, [view.cells]);
 
   function colorFor(cell: string | null): string | null {
     if (!cell) return null;
@@ -48,8 +67,12 @@ export function ConnectFourGame({ game, players, send }: GameProps) {
         onCellClick={(_, index) =>
           send({ type: "game_action", payload: { type: "drop", column: index % view.columns } })
         }
-        renderCell={(cell) => (
-          <span className={`h-[78%] w-[78%] rounded-full ${colorFor(cell) ?? "bg-background/40"}`} />
+        renderCell={(cell, index) => (
+          <span
+            className={`h-[78%] w-[78%] rounded-full ${colorFor(cell) ?? "bg-background/40"} ${
+              index === justDropped ? "animate-disc-drop" : ""
+            }`}
+          />
         )}
       />
 

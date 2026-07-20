@@ -182,6 +182,15 @@ export const GAME_LIST: GameMeta[] = [
         options: [3, 4].map((n) => ({ value: n, label: `${n} letters` })),
         default: 3,
       },
+      {
+        key: "boardSize",
+        label: "Board size",
+        options: [
+          { value: "classic", label: "4×4 Official" },
+          { value: "big", label: "5×5 Big Boggle" },
+        ],
+        default: "classic",
+      },
     ],
   },
   {

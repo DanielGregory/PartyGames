@@ -73,7 +73,7 @@ export function Board<T>({
 
         if (!onCellClick) {
           return (
-            <div key={key} className={baseClasses}>
+            <div key={key} data-cell-index={index} className={baseClasses}>
               {content}
             </div>
           );
@@ -83,6 +83,7 @@ export function Board<T>({
           <button
             key={key}
             type="button"
+            data-cell-index={index}
             disabled={isDisabled}
             onClick={() => onCellClick(cell, index)}
             className={`${baseClasses} transition-colors hover:border-accent disabled:opacity-40 disabled:hover:border-card-border`}

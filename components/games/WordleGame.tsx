@@ -25,7 +25,7 @@ type WordleView = {
 const TILE_COLORS: Record<LetterState, string> = {
   green: "border-emerald-400 bg-emerald-400/20 text-emerald-300",
   yellow: "border-amber-400 bg-amber-400/20 text-amber-300",
-  gray: "border-card-border bg-card text-muted",
+  gray: "border-zinc-600 bg-zinc-700 text-zinc-300",
 };
 
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];

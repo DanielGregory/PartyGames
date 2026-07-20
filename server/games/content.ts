@@ -189,6 +189,36 @@ export const BOGGLE_DICE: string[][] = [
   ["D", "E", "I", "L", "R", "X"],
 ];
 
+// "Big Boggle" (1988) 5x5, 25-cube letter distribution - the standard
+// larger board size.
+export const BIG_BOGGLE_DICE: string[][] = [
+  ["A", "A", "A", "F", "R", "S"],
+  ["A", "A", "E", "E", "E", "E"],
+  ["A", "A", "F", "I", "R", "S"],
+  ["A", "D", "E", "N", "N", "N"],
+  ["A", "E", "E", "E", "E", "M"],
+  ["A", "E", "E", "G", "M", "U"],
+  ["A", "E", "G", "M", "N", "N"],
+  ["A", "F", "I", "R", "S", "Y"],
+  ["B", "J", "K", "QU", "X", "Z"],
+  ["C", "C", "N", "S", "T", "W"],
+  ["C", "E", "I", "I", "L", "T"],
+  ["C", "E", "I", "L", "P", "T"],
+  ["C", "E", "I", "P", "S", "T"],
+  ["D", "D", "L", "N", "O", "R"],
+  ["D", "H", "H", "L", "O", "R"],
+  ["D", "H", "H", "N", "O", "T"],
+  ["D", "H", "L", "N", "O", "R"],
+  ["E", "I", "I", "I", "T", "T"],
+  ["E", "M", "O", "T", "T", "T"],
+  ["E", "N", "S", "S", "S", "U"],
+  ["F", "I", "P", "R", "S", "Y"],
+  ["G", "O", "R", "R", "V", "W"],
+  ["H", "I", "P", "R", "R", "Y"],
+  ["N", "O", "O", "T", "U", "W"],
+  ["O", "O", "O", "T", "T", "U"],
+];
+
 // Concrete, drawable prompts for Pictionary - deliberately simpler and more
 // literal than HANGMAN_WORDS or the dictionary, since these need to be
 // sketchable in under a minute, not just spellable.

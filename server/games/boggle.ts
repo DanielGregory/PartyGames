@@ -1,75 +1,56 @@
 import type { BaseGameState, GameModule, Player } from "../types";
-import { BOGGLE_DICE } from "./content";
+import { BIG_BOGGLE_DICE, BOGGLE_DICE } from "./content";
 import { isValidWord } from "../wordbank";
 
-const GRID_SIZE = 4;
-const CELL_COUNT = GRID_SIZE * GRID_SIZE;
+const DEFAULT_GRID_SIZE = 4;
 const DEFAULT_ROUND_MS = 3 * 60 * 1000;
 const DEFAULT_MIN_WORD_LENGTH = 3;
 
 export type BoggleState = BaseGameState & {
   stage: "playing" | "reveal";
-  grid: string[]; // 16 cells, each "A".."Z" or "QU"
+  gridSize: number;
+  grid: string[]; // gridSize x gridSize cells, each "A".."Z" or "QU"
   roundMs: number;
   minWordLength: number;
   timerEndsAt: number;
   foundWords: Record<string, string[]>; // word (lowercase) -> playerIds who found it
 };
 
-function rollGrid(): string[] {
-  const dice = [...BOGGLE_DICE];
+function diceSetFor(gridSize: number): string[][] {
+  return gridSize >= 5 ? BIG_BOGGLE_DICE : BOGGLE_DICE;
+}
+
+function rollGrid(gridSize: number): string[] {
+  const dice = [...diceSetFor(gridSize)];
   for (let i = dice.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [dice[i], dice[j]] = [dice[j], dice[i]];
   }
-  return dice.map((faces) => faces[Math.floor(Math.random() * faces.length)]);
+  return dice.slice(0, gridSize * gridSize).map((faces) => faces[Math.floor(Math.random() * faces.length)]);
 }
 
-function neighborsOf(index: number): number[] {
-  const row = Math.floor(index / GRID_SIZE);
-  const col = index % GRID_SIZE;
-  const result: number[] = [];
-  for (let dr = -1; dr <= 1; dr++) {
-    for (let dc = -1; dc <= 1; dc++) {
-      if (dr === 0 && dc === 0) continue;
-      const r = row + dr;
-      const c = col + dc;
-      if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
-        result.push(r * GRID_SIZE + c);
-      }
-    }
-  }
-  return result;
+function isAdjacent(a: number, b: number, gridSize: number): boolean {
+  if (a === b) return false;
+  const r1 = Math.floor(a / gridSize);
+  const c1 = a % gridSize;
+  const r2 = Math.floor(b / gridSize);
+  const c2 = b % gridSize;
+  return Math.abs(r1 - r2) <= 1 && Math.abs(c1 - c2) <= 1;
 }
 
-const NEIGHBOR_CACHE: number[][] = Array.from({ length: CELL_COUNT }, (_, i) => neighborsOf(i));
-
-/** Does a path exist through the grid, visiting each cell at most once,
- * whose cell letters concatenate to exactly `word`? */
-export function canFormWord(grid: string[], word: string): boolean {
-  const upper = word.toUpperCase();
-
-  function dfs(pos: number, matchedLen: number, visited: Set<number>): boolean {
-    if (matchedLen === upper.length) return true;
-    for (const n of NEIGHBOR_CACHE[pos]) {
-      if (visited.has(n)) continue;
-      const letter = grid[n];
-      if (upper.startsWith(letter, matchedLen)) {
-        visited.add(n);
-        if (dfs(n, matchedLen + letter.length, visited)) return true;
-        visited.delete(n);
-      }
-    }
-    return false;
+/** Is `cells` a valid drag path: in-bounds, no repeated cell, each step
+ * adjacent to the last? */
+function isValidPath(cells: number[], gridSize: number): boolean {
+  if (cells.length === 0) return false;
+  const cellCount = gridSize * gridSize;
+  if (new Set(cells).size !== cells.length) return false;
+  for (const c of cells) {
+    if (!Number.isInteger(c) || c < 0 || c >= cellCount) return false;
   }
-
-  for (let start = 0; start < grid.length; start++) {
-    const letter = grid[start];
-    if (upper.startsWith(letter, 0)) {
-      if (dfs(start, letter.length, new Set([start]))) return true;
-    }
+  for (let i = 1; i < cells.length; i++) {
+    if (!isAdjacent(cells[i - 1], cells[i], gridSize)) return false;
   }
-  return false;
+  return true;
 }
 
 function pointsForLength(length: number): number {
@@ -86,6 +67,8 @@ function startRound(
   config?: Record<string, unknown>
 ): BoggleState {
   void players;
+  const gridSize =
+    prev?.gridSize ?? (config?.boardSize === "big" ? 5 : DEFAULT_GRID_SIZE);
   const roundMs =
     prev?.roundMs ?? (typeof config?.roundMinutes === "number" ? config.roundMinutes * 60 * 1000 : DEFAULT_ROUND_MS);
   const minWordLength =
@@ -98,7 +81,8 @@ function startRound(
     roundOver: false,
     gameOver: false,
     scoreDeltas: {},
-    grid: rollGrid(),
+    gridSize,
+    grid: rollGrid(gridSize),
     roundMs,
     minWordLength,
     timerEndsAt: Date.now() + roundMs,
@@ -117,18 +101,22 @@ function reveal(state: BoggleState): BoggleState {
 }
 
 function applyAction(state: BoggleState, playerId: string, payload: unknown): BoggleState {
-  const action = payload as { type: string; word?: string };
+  const action = payload as { type: string; cells?: unknown };
 
   if (action.type === "time_up" && state.stage === "playing") {
     return reveal(state);
   }
 
-  if (action.type === "submit_word" && state.stage === "playing") {
-    const word = (action.word ?? "").trim().toLowerCase();
+  if (action.type === "submit_path" && state.stage === "playing") {
+    const cells = Array.isArray(action.cells) ? (action.cells as unknown[]) : [];
+    const path = cells.filter((c): c is number => typeof c === "number");
+    if (path.length !== cells.length) return state; // malformed entry
+    if (!isValidPath(path, state.gridSize)) return state;
+
+    const word = path.map((c) => state.grid[c]).join("").toLowerCase();
     if (word.length < state.minWordLength) return state;
     if (state.foundWords[word]?.includes(playerId)) return state;
     if (!isValidWord(word)) return state;
-    if (!canFormWord(state.grid, word)) return state;
 
     const finders = state.foundWords[word] ?? [];
     return {
@@ -147,6 +135,7 @@ function redactState(state: BoggleState, forPlayerId: string): BaseGameState & R
     roundOver: state.roundOver,
     gameOver: state.gameOver,
     scoreDeltas: state.scoreDeltas,
+    gridSize: state.gridSize,
     grid: state.grid,
     timerEndsAt: state.timerEndsAt,
     totalWordsFound: Object.keys(state.foundWords).length,
