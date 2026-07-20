@@ -35,6 +35,69 @@ function straightLine(start: number, end: number, gridSize: number): number[] | 
   return cells;
 }
 
+type Circle = { key: string; left: number; top: number; length: number; thickness: number; angle: number };
+
+/** Measures the start/end cells of each found word and returns a rotated
+ * pill/capsule overlay (a "circled word" look, like a real word search
+ * puzzle) instead of a flat background tint. Recomputes on resize since
+ * it depends on actual rendered cell positions, not just grid math. */
+function useWordCircles(
+  gridRef: React.RefObject<HTMLDivElement | null>,
+  words: { key: string; cells: number[] }[]
+): Circle[] {
+  const [circles, setCircles] = useState<Circle[]>([]);
+  const wordsKey = words.map((w) => `${w.key}:${w.cells[0]}-${w.cells[w.cells.length - 1]}`).join(",");
+
+  useEffect(() => {
+    const container = gridRef.current;
+    if (!container) return;
+
+    function recompute() {
+      const containerRect = container!.getBoundingClientRect();
+      if (containerRect.width === 0) return;
+      const next: Circle[] = [];
+      for (const { key, cells } of words) {
+        if (cells.length === 0) continue;
+        const startEl = container!.querySelector(`[data-cell-index="${cells[0]}"]`) as HTMLElement | null;
+        const endEl = container!.querySelector(
+          `[data-cell-index="${cells[cells.length - 1]}"]`
+        ) as HTMLElement | null;
+        if (!startEl || !endEl) continue;
+        const startRect = startEl.getBoundingClientRect();
+        const endRect = endEl.getBoundingClientRect();
+        const startX = startRect.left + startRect.width / 2 - containerRect.left;
+        const startY = startRect.top + startRect.height / 2 - containerRect.top;
+        const endX = endRect.left + endRect.width / 2 - containerRect.left;
+        const endY = endRect.top + endRect.height / 2 - containerRect.top;
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        next.push({
+          key,
+          left: (startX + endX) / 2,
+          top: (startY + endY) / 2,
+          length: dist + startRect.width,
+          thickness: startRect.height * 0.8,
+          angle: (Math.atan2(dy, dx) * 180) / Math.PI,
+        });
+      }
+      setCircles(next);
+    }
+
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(container);
+    window.addEventListener("resize", recompute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", recompute);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridRef, wordsKey]);
+
+  return circles;
+}
+
 export function WordSearchGame({ game, players, send }: GameProps) {
   const view = game as unknown as WordSearchView;
   const remainingMs = useCountdownMs(view.timerEndsAt);
@@ -53,19 +116,23 @@ export function WordSearchGame({ game, players, send }: GameProps) {
     send({ type: "game_action", payload: { type: "time_up" } });
   }, [remainingMs, view.stage, view.round, send]);
 
-  // At reveal, show every word's location (found or not); mid-round, only
-  // found ones - unfound placements stay off the wire entirely until then.
-  const highlighted = new Map<number, boolean>(); // cell -> was actually found by someone
+  // Found words get circled (see useWordCircles) rather than background-
+  // tinted. At reveal, words nobody found are still shown as a flat amber
+  // highlight - they're the "here's what you missed" answer key, not a
+  // triumphant circle.
+  const unfoundAtReveal = new Set<number>();
   if (view.stage === "reveal" && view.solution) {
     for (const [word, cells] of Object.entries(view.solution)) {
-      const found = Boolean(view.foundWords?.[word]);
-      for (const cell of cells) highlighted.set(cell, found);
-    }
-  } else {
-    for (const entry of Object.values(view.foundWords ?? {})) {
-      for (const cell of entry.cells) highlighted.set(cell, true);
+      if (view.foundWords?.[word]) continue;
+      for (const cell of cells) unfoundAtReveal.add(cell);
     }
   }
+
+  const foundEntries = Object.entries(view.foundWords ?? {}).map(([word, entry]) => ({
+    key: word,
+    cells: entry.cells,
+  }));
+  const circles = useWordCircles(gridRef, foundEntries);
 
   function cellAt(clientX: number, clientY: number): number | null {
     const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
@@ -131,7 +198,7 @@ export function WordSearchGame({ game, players, send }: GameProps) {
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        className="touch-none select-none"
+        className="relative touch-none select-none"
       >
         <Board
           columns={view.gridSize}
@@ -139,13 +206,24 @@ export function WordSearchGame({ game, players, send }: GameProps) {
           disabled={view.stage === "reveal"}
           cellClassName={(_, index) => {
             if (selection.includes(index)) return "!border-accent !bg-accent/25";
-            if (!highlighted.has(index)) return "";
-            return highlighted.get(index)
-              ? "!border-emerald-400 !bg-emerald-400/10"
-              : "!border-amber-400/60 !bg-amber-400/10";
+            if (unfoundAtReveal.has(index)) return "!border-amber-400/60 !bg-amber-400/10";
+            return "";
           }}
           renderCell={(letter) => <span className="text-sm font-semibold">{letter}</span>}
         />
+        {circles.map((c) => (
+          <div
+            key={c.key}
+            className="pointer-events-none absolute rounded-full border-2 border-emerald-400/80 bg-emerald-400/10"
+            style={{
+              left: c.left,
+              top: c.top,
+              width: c.length,
+              height: c.thickness,
+              transform: `translate(-50%, -50%) rotate(${c.angle}deg)`,
+            }}
+          />
+        ))}
       </div>
 
       <Card>

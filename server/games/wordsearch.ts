@@ -12,6 +12,7 @@ const LENGTH_PRESETS: Record<string, [number, number]> = {
 const DEFAULT_LENGTH_PRESET = "medium";
 const DEFAULT_ROUND_MS = 3 * 60 * 1000;
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const POINTS_PER_WORD = 2; // flat, regardless of length - matches Trivia's per-correct value
 
 const DIRECTIONS: [number, number][] = [
   [0, 1],
@@ -38,8 +39,17 @@ export type WordSearchState = BaseGameState & {
   timerEndsAt: number;
 };
 
+/** Places `word` on the grid, preferring a placement that overlaps existing
+ * letters (a real crossing, like hand-made word search puzzles) over one
+ * that lands in empty space - tries a budget of random placements and keeps
+ * the one with the most overlap, stopping early once a solid crossing is
+ * found. Falls back to any valid (possibly non-overlapping) placement if no
+ * overlap is possible for this word. */
 function tryPlaceWord(grid: (string | null)[], word: string): number[] | null {
-  for (let attempt = 0; attempt < 200; attempt++) {
+  let best: number[] | null = null;
+  let bestOverlap = -1;
+
+  for (let attempt = 0; attempt < 300; attempt++) {
     const [dr, dc] = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
     const startRow = Math.floor(Math.random() * GRID_SIZE);
     const startCol = Math.floor(Math.random() * GRID_SIZE);
@@ -49,25 +59,36 @@ function tryPlaceWord(grid: (string | null)[], word: string): number[] | null {
 
     const cells: number[] = [];
     let ok = true;
+    let overlap = 0;
     for (let i = 0; i < word.length; i++) {
       const r = startRow + dr * i;
       const c = startCol + dc * i;
       const index = r * GRID_SIZE + c;
       const existing = grid[index];
-      if (existing !== null && existing !== word[i]) {
-        ok = false;
-        break;
+      if (existing !== null) {
+        if (existing !== word[i]) {
+          ok = false;
+          break;
+        }
+        overlap++;
       }
       cells.push(index);
     }
     if (!ok) continue;
 
-    cells.forEach((index, i) => {
+    if (overlap > bestOverlap) {
+      best = cells;
+      bestOverlap = overlap;
+    }
+    if (bestOverlap >= 2) break; // good enough crossing - stop burning attempts
+  }
+
+  if (best) {
+    best.forEach((index, i) => {
       grid[index] = word[i];
     });
-    return cells;
   }
-  return null;
+  return best;
 }
 
 function startRound(
@@ -170,7 +191,10 @@ function applyAction(state: WordSearchState, playerId: string, payload: unknown)
     if (!match) return state;
 
     const foundWords = { ...state.foundWords, [match]: { playerId, cells: line } };
-    const scoreDeltas = { ...state.scoreDeltas, [playerId]: (state.scoreDeltas[playerId] ?? 0) + match.length };
+    const scoreDeltas = {
+      ...state.scoreDeltas,
+      [playerId]: (state.scoreDeltas[playerId] ?? 0) + POINTS_PER_WORD,
+    };
     const allFound = state.targetWords.every((w) => foundWords[w]);
 
     return {
