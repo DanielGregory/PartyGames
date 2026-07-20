@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f0b1e;
+  --foreground: #f5f3ff;
+  --card: #1c1533;
+  --card-border: #322a52;
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --muted: #a89fc4;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-border: var(--card-border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-muted: var(--muted);
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(circle at top, #241a3d 0%, var(--background) 60%);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  min-height: 100%;
+}
+
+input {
+  color-scheme: dark;
+}
