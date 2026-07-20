@@ -145,6 +145,29 @@ export const HANGMAN_WORDS: string[] = [
   "FIREFLY", "MOUNTAIN",
 ];
 
+export const GUESS_WHO_CHARACTERS: { id: string; name: string; emoji: string }[] = [
+  { id: "cowboy", name: "Cowboy Cole", emoji: "🤠" },
+  { id: "ninja", name: "Ninja Nora", emoji: "🥷" },
+  { id: "wizard", name: "Wizard Orin", emoji: "🧙‍♂️" },
+  { id: "witch", name: "Witch Hazel", emoji: "🧙‍♀️" },
+  { id: "hero", name: "Hero Harlow", emoji: "🦸‍♀️" },
+  { id: "villain", name: "Villain Vic", emoji: "🦹‍♂️" },
+  { id: "detective", name: "Detective Drake", emoji: "🕵️‍♂️" },
+  { id: "astronaut", name: "Astronaut Amir", emoji: "👨‍🚀" },
+  { id: "rockstar", name: "Rockstar Rae", emoji: "👩‍🎤" },
+  { id: "vampire", name: "Vampire Viktor", emoji: "🧛‍♂️" },
+  { id: "mermaid", name: "Mermaid Marina", emoji: "🧜‍♀️" },
+  { id: "prince", name: "Prince Percy", emoji: "🤴" },
+  { id: "princess", name: "Princess Wren", emoji: "👸" },
+  { id: "fairy", name: "Fairy Fiona", emoji: "🧚‍♀️" },
+  { id: "genie", name: "Genie Jasper", emoji: "🧞‍♂️" },
+  { id: "santa", name: "Santa Stan", emoji: "🎅" },
+  { id: "alien", name: "Alien Zeta", emoji: "👽" },
+  { id: "clown", name: "Clown Coco", emoji: "🤡" },
+  { id: "ghost", name: "Ghost Gus", emoji: "👻" },
+  { id: "guard", name: "Guard Gerald", emoji: "💂‍♂️" },
+];
+
 export function pickUnused<T>(bank: T[], used: number[]): { item: T; index: number } {
   const available = bank.map((_, i) => i).filter((i) => !used.includes(i));
   const pool = available.length > 0 ? available : bank.map((_, i) => i);

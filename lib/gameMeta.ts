@@ -64,6 +64,22 @@ export const GAME_LIST: GameMeta[] = [
     description: "Take turns guessing letters to reveal the secret word before you run out of guesses.",
     minPlayers: 2,
   },
+  {
+    id: "battleship",
+    label: "Battleship",
+    emoji: "🚢",
+    description: "Secretly place your fleet, then take turns firing at your opponent's grid to sink it.",
+    minPlayers: 2,
+    maxPlayers: 2,
+  },
+  {
+    id: "guesswho",
+    label: "Guess Who",
+    emoji: "❓",
+    description: "You're secretly assigned a character. Ask yes/no questions to guess your opponent's before they guess yours.",
+    minPlayers: 2,
+    maxPlayers: 2,
+  },
 ];
 
 export function gameMeta(id: GameId): GameMeta {

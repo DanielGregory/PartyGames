@@ -10,7 +10,9 @@ export type GameId =
   | "mostlikely"
   | "quizmaster"
   | "connectfour"
-  | "hangman";
+  | "hangman"
+  | "battleship"
+  | "guesswho";
 
 export type Player = {
   id: string;
