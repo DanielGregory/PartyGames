@@ -2,39 +2,46 @@
 
 Mobile-friendly multiplayer party games. No accounts — a host creates a room,
 gets a 4-letter code (and QR code), and everyone else joins from their own
-phone. Next.js (App Router) renders the UI; a [PartyKit](https://www.partykit.io)
-server holds the authoritative room state and pushes live updates over
-WebSockets.
+phone. Next.js (App Router) renders the UI; a [Cloudflare Workers](https://developers.cloudflare.com/durable-objects/)
+Durable Object (via [`partyserver`](https://github.com/cloudflare/partykit/tree/main/packages/partyserver),
+the PartyKit-style API Cloudflare maintains directly since acquiring PartyKit)
+holds the authoritative room state and pushes live updates over WebSockets.
 
 Game modes: **Spyfall**, **Fibbing It**, **Trivia**, **Most Likely To**.
 
 ## Architecture
 
-- `party/` — the PartyKit server. `party/main.ts` owns the room/lobby/player/
-  score state and message routing. Each game mode is an isolated module under
-  `party/games/` implementing the `GameModule` interface (`party/types.ts`):
-  `next()` to start a round, `action()` to apply a player move, and `redact()`
-  to produce the per-player view (so secrets like a Spyfall role or a Fibbing
-  It author never reach the wrong client). Adding a new mode means adding one
-  module and registering it in `party/games/registry.ts` — the shared lobby,
-  scoreboard, and round-advance UI need no changes.
+- `party/main.ts` — a Cloudflare Worker + Durable Object (`Room`, built on
+  `partyserver`'s `Server` class) that owns the room/lobby/player/score state
+  and message routing. One Durable Object instance per room code.
+- `party/games/` — each game mode is an isolated module implementing the
+  `GameModule` interface (`party/types.ts`): `next()` to start a round,
+  `action()` to apply a player move, and `redact()` to produce the per-player
+  view (so secrets like a Spyfall role or a Fibbing It author never reach the
+  wrong client). Adding a new mode means adding one module and registering it
+  in `party/games/registry.ts` — the shared lobby, scoreboard, and
+  round-advance UI need no changes.
 - `app/`, `components/` — the Next.js client. `components/GameShell.tsx`
   renders the active game module's component and a shared scoreboard/"next
   round" panel whenever `game.roundOver` is true.
 - `lib/gameMeta.ts` — a client-safe list of game names/descriptions, kept
   separate from `party/games/registry.ts` so prompt/answer banks never end up
   in the browser bundle.
+- `wrangler.jsonc` — Cloudflare Workers config: the `Room` Durable Object is
+  bound as `Main`, so `partysocket`'s default `party: "main"` routes to it
+  with no client-side configuration.
 
 ## Local development
 
-Requires Node 20.9+.
+Requires Node 20.9+ and a Cloudflare account (free tier is fine — needed for
+`wrangler dev`/`deploy`, not for running the Next.js app itself).
 
 ```bash
 npm install
 cp .env.example .env.local   # NEXT_PUBLIC_PARTYKIT_HOST=localhost:1999
 
-npx partykit dev              # terminal 1 — the room server, port 1999
-npm run dev                    # terminal 2 — the Next.js app, port 3000
+npm run party:dev   # terminal 1 — wrangler dev, the room server on :1999
+npm run dev          # terminal 2 — the Next.js app on :3000
 ```
 
 Open `http://localhost:3000`, create a room, and open the room link in
@@ -43,26 +50,26 @@ swap `localhost` for your machine's LAN IP) to join as a second player.
 
 ## Deploying
 
-**1. Deploy the PartyKit server:**
+**1. Deploy the Worker:**
 
 ```bash
-npx partykit login
-npx partykit deploy
+npx wrangler login    # opens a browser to authenticate with Cloudflare
+npm run party:deploy
 ```
 
-This publishes `party/main.ts` (per `partykit.json`) to something like
-`https://partygames.<your-partykit-username>.partykit.dev`.
+This publishes `party/main.ts` (per `wrangler.jsonc`) to something like
+`https://partygames.<your-cloudflare-subdomain>.workers.dev`.
 
 **2. Deploy the Next.js app to Vercel:**
 
 ```bash
-vercel
+npx vercel
 ```
 
 In the Vercel project's environment variables, set:
 
 ```
-NEXT_PUBLIC_PARTYKIT_HOST=partygames.<your-partykit-username>.partykit.dev
+NEXT_PUBLIC_PARTYKIT_HOST=partygames.<your-cloudflare-subdomain>.workers.dev
 ```
 
 (no `https://`, no trailing slash) and redeploy. That's the only environment

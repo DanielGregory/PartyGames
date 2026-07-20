@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "partygames",
+  "main": "party/main.ts",
+  "compatibility_date": "2025-01-01",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "Main",
+        "class_name": "Room"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["Room"]
+    }
+  ]
+}

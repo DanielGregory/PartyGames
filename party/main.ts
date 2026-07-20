@@ -1,4 +1,4 @@
-import type * as Party from "partykit/server";
+import { Server, routePartykitRequest, type Connection } from "partyserver";
 import type {
   BaseGameState,
   ClientMessage,
@@ -23,6 +23,10 @@ type ServerRoomState = {
   game: (BaseGameState & Record<string, unknown>) | null;
 };
 
+interface Env {
+  Main: DurableObjectNamespace<Room>;
+}
+
 const STORAGE_KEY = "room-state";
 
 function defaultState(code: string): ServerRoomState {
@@ -38,20 +42,17 @@ function defaultState(code: string): ServerRoomState {
   };
 }
 
-export default class Room implements Party.Server {
-  state: ServerRoomState;
-
-  constructor(readonly room: Party.Room) {
-    this.state = defaultState(room.id);
-  }
+export class Room extends Server<Env> {
+  state: ServerRoomState = defaultState("");
 
   async onStart() {
-    const saved = await this.room.storage.get<ServerRoomState>(STORAGE_KEY);
+    this.state = defaultState(this.name);
+    const saved = await this.ctx.storage.get<ServerRoomState>(STORAGE_KEY);
     if (saved) this.state = saved;
   }
 
   private async persist() {
-    await this.room.storage.put(STORAGE_KEY, this.state);
+    await this.ctx.storage.put(STORAGE_KEY, this.state);
   }
 
   private publicState(): PublicRoomState {
@@ -65,8 +66,8 @@ export default class Room implements Party.Server {
     };
   }
 
-  private sendTo(conn: Party.Connection) {
-    const connState = conn.state as ConnState | null;
+  private sendTo(conn: Connection<ConnState>) {
+    const connState = conn.state;
     if (!connState?.playerId) return;
     const isHost = connState.playerId === this.state.hostId;
     const mod = this.state.gameId ? gameRegistry[this.state.gameId] : null;
@@ -81,12 +82,12 @@ export default class Room implements Party.Server {
   }
 
   private broadcastAll() {
-    for (const conn of this.room.getConnections<ConnState>()) {
+    for (const conn of this.getConnections<ConnState>()) {
       this.sendTo(conn);
     }
   }
 
-  private sendError(conn: Party.Connection, message: string) {
+  private sendError(conn: Connection, message: string) {
     const payload: ServerMessage = { type: "error", message };
     conn.send(JSON.stringify(payload));
   }
@@ -96,12 +97,11 @@ export default class Room implements Party.Server {
     // need their persisted playerId + display name.
   }
 
-  async onClose(conn: Party.Connection) {
-    const connState = conn.state as ConnState | null;
-    const playerId = connState?.playerId;
+  async onClose(conn: Connection<ConnState>) {
+    const playerId = conn.state?.playerId;
     if (!playerId) return;
 
-    const stillConnected = [...this.room.getConnections<ConnState>()].some(
+    const stillConnected = [...this.getConnections<ConnState>()].some(
       (c) => c.id !== conn.id && c.state?.playerId === playerId
     );
     if (stillConnected) return;
@@ -118,7 +118,7 @@ export default class Room implements Party.Server {
     this.broadcastAll();
   }
 
-  async onMessage(raw: string | ArrayBuffer | ArrayBufferView, sender: Party.Connection) {
+  async onMessage(sender: Connection<ConnState>, raw: string | ArrayBuffer | ArrayBufferView) {
     if (typeof raw !== "string") return;
     let message: ClientMessage;
     try {
@@ -144,8 +144,7 @@ export default class Room implements Party.Server {
       return;
     }
 
-    const connState = sender.state as ConnState | null;
-    const playerId = connState?.playerId;
+    const playerId = sender.state?.playerId;
     if (!playerId) {
       this.sendError(sender, "Not joined yet.");
       return;
@@ -214,3 +213,9 @@ export default class Room implements Party.Server {
     this.broadcastAll();
   }
 }
+
+export default {
+  async fetch(request: Request, env: Env) {
+    return (await routePartykitRequest(request, env)) ?? new Response("Not found", { status: 404 });
+  },
+} satisfies ExportedHandler<Env>;
