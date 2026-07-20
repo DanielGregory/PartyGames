@@ -8,6 +8,9 @@ import { connectFourModule } from "./connectfour";
 import { hangmanModule } from "./hangman";
 import { battleshipModule } from "./battleship";
 import { guessWhoModule } from "./guesswho";
+import { boggleModule } from "./boggle";
+import { wordSearchModule } from "./wordsearch";
+import { wordleModule } from "./wordle";
 
 export const gameRegistry: Record<GameId, GameModule<BaseGameState & Record<string, unknown>>> = {
   spyfall: spyfallModule as GameModule<BaseGameState & Record<string, unknown>>,
@@ -19,6 +22,9 @@ export const gameRegistry: Record<GameId, GameModule<BaseGameState & Record<stri
   hangman: hangmanModule as GameModule<BaseGameState & Record<string, unknown>>,
   battleship: battleshipModule as GameModule<BaseGameState & Record<string, unknown>>,
   guesswho: guessWhoModule as GameModule<BaseGameState & Record<string, unknown>>,
+  boggle: boggleModule as GameModule<BaseGameState & Record<string, unknown>>,
+  wordsearch: wordSearchModule as GameModule<BaseGameState & Record<string, unknown>>,
+  wordle: wordleModule as GameModule<BaseGameState & Record<string, unknown>>,
 };
 
 export const gameList = Object.values(gameRegistry).map((m) => m.meta);

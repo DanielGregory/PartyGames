@@ -80,6 +80,27 @@ export const GAME_LIST: GameMeta[] = [
     minPlayers: 2,
     maxPlayers: 2,
   },
+  {
+    id: "boggle",
+    label: "Boggle",
+    emoji: "🔠",
+    description: "Find as many words as you can in the letter grid before time runs out. Longer words score more.",
+    minPlayers: 2,
+  },
+  {
+    id: "wordsearch",
+    label: "Word Search",
+    emoji: "🔎",
+    description: "Race to find every hidden word in the grid before time runs out.",
+    minPlayers: 2,
+  },
+  {
+    id: "wordle",
+    label: "Wordle",
+    emoji: "🟩",
+    description: "Guess the secret 5-letter word in 6 tries. Fewer guesses score more.",
+    minPlayers: 2,
+  },
 ];
 
 export function gameMeta(id: GameId): GameMeta {

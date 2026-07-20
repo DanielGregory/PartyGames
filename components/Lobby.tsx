@@ -81,7 +81,7 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
         <p className="mb-2 text-sm font-semibold text-muted">
           Players ({connectedCount})
         </p>
-        <PlayerList players={room.players} hostId={room.hostId} youId={you.id} />
+        <PlayerList players={room.players} hostId={room.hostId} youId={you.id} showScores />
       </div>
 
       {you.isHost ? (

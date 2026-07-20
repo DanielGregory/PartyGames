@@ -224,7 +224,7 @@ export async function handleMessage(
       }
 
       room.game_id = mod.meta.id;
-      room.game_state = mod.next(null, activeRoster(room, players), message.config);
+      room.game_state = await mod.next(null, activeRoster(room, players), message.config);
       room.status = "playing";
       room.round = room.game_state.round;
       break;
@@ -252,7 +252,7 @@ export async function handleMessage(
       if (!isHost || room.status !== "playing" || !room.game_id || !room.game_state) break;
       if (!room.game_state.roundOver || room.game_state.gameOver) break;
       const mod = gameRegistry[room.game_id];
-      room.game_state = mod.next(room.game_state, activeRoster(room, players));
+      room.game_state = await mod.next(room.game_state, activeRoster(room, players));
       room.round = room.game_state.round;
       break;
     }

@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { RoomView } from "@/lib/useRoom";
 import { ScoreboardPanel } from "./Scoreboard";
+import { ScoreboardOverlay } from "./ScoreboardOverlay";
 import { SpyfallGame } from "./games/SpyfallGame";
 import { FibbingItGame } from "./games/FibbingItGame";
 import { TriviaGame } from "./games/TriviaGame";
@@ -11,6 +13,9 @@ import { ConnectFourGame } from "./games/ConnectFourGame";
 import { HangmanGame } from "./games/HangmanGame";
 import { BattleshipGame } from "./games/BattleshipGame";
 import { GuessWhoGame } from "./games/GuessWhoGame";
+import { BoggleGame } from "./games/BoggleGame";
+import { WordSearchGame } from "./games/WordSearchGame";
+import { WordleGame } from "./games/WordleGame";
 
 type Props = RoomView & {
   room: NonNullable<RoomView["room"]>;
@@ -20,12 +25,30 @@ type Props = RoomView & {
 
 export function GameShell({ room, game, you, send }: Props) {
   const gameProps = { game, players: room.players, you, send };
+  const [showScoreboard, setShowScoreboard] = useState(false);
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-5 py-8">
-      <div className="text-center text-sm text-muted">
-        {room.code} · Round {game.round}
+      <div className="flex items-center justify-between text-sm text-muted">
+        <span>
+          {room.code} · Round {game.round}
+        </span>
+        <button
+          onClick={() => setShowScoreboard(true)}
+          className="rounded-full border border-card-border bg-card px-3 py-1 font-semibold text-foreground"
+        >
+          🏆 Scores
+        </button>
       </div>
+
+      {showScoreboard && (
+        <ScoreboardOverlay
+          players={room.players}
+          hostId={room.hostId}
+          youId={you.id}
+          onClose={() => setShowScoreboard(false)}
+        />
+      )}
 
       {room.selectedGame === "spyfall" && <SpyfallGame {...gameProps} />}
       {room.selectedGame === "fibbingit" && <FibbingItGame {...gameProps} />}
@@ -36,6 +59,9 @@ export function GameShell({ room, game, you, send }: Props) {
       {room.selectedGame === "hangman" && <HangmanGame {...gameProps} />}
       {room.selectedGame === "battleship" && <BattleshipGame {...gameProps} />}
       {room.selectedGame === "guesswho" && <GuessWhoGame {...gameProps} />}
+      {room.selectedGame === "boggle" && <BoggleGame {...gameProps} />}
+      {room.selectedGame === "wordsearch" && <WordSearchGame {...gameProps} />}
+      {room.selectedGame === "wordle" && <WordleGame {...gameProps} />}
 
       {game.roundOver && (
         <ScoreboardPanel
