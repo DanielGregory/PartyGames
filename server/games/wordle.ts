@@ -1,5 +1,5 @@
 import type { BaseGameState, GameModule, Player } from "../types";
-import { getWordList, isValidWord } from "../wordbank";
+import { isValidWord, randomWords } from "../wordbank";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -17,17 +17,10 @@ export type WordleState = BaseGameState & {
   guesses: Record<string, Guess[]>;
 };
 
-async function startRound(prev: WordleState | null, players: Player[]): Promise<WordleState> {
+function startRound(prev: WordleState | null, players: Player[]): WordleState {
   void players;
   const usedWords = prev?.usedWords ?? [];
-  // Tracked by word string rather than index: getWordList() re-queries
-  // Supabase each round and row order isn't guaranteed stable, so an
-  // index-based "already used" list (the pattern content.ts's pickUnused
-  // uses for static in-repo arrays) would silently drift here.
-  const words = (await getWordList("wordle", WORD_LENGTH)).map((w) => w.toLowerCase());
-  const available = words.filter((w) => !usedWords.includes(w));
-  const pool = available.length > 0 ? available : words;
-  const secret = pool[Math.floor(Math.random() * pool.length)];
+  const [secret] = randomWords(WORD_LENGTH, WORD_LENGTH, 1, usedWords);
 
   return {
     stage: "guessing",

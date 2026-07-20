@@ -1,11 +1,12 @@
 import type { BaseGameState, GameModule, Player } from "../types";
-import { getWordList } from "../wordbank";
+import { randomWords } from "../wordbank";
 
 const GRID_SIZE = 10;
 const CELL_COUNT = GRID_SIZE * GRID_SIZE;
 const TARGET_WORD_COUNT = 8;
+const MIN_WORD_LENGTH = 4;
+const MAX_WORD_LENGTH = 8;
 const ROUND_MS = 3 * 60 * 1000;
-const CATEGORIES = ["animals", "fruits", "space", "ocean"];
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 const DIRECTIONS: [number, number][] = [
@@ -21,8 +22,7 @@ const DIRECTIONS: [number, number][] = [
 
 export type WordSearchState = BaseGameState & {
   stage: "searching" | "reveal";
-  category: string;
-  usedCategories: string[];
+  usedWords: string[];
   gridSize: number;
   grid: string[];
   targetWords: string[];
@@ -30,21 +30,6 @@ export type WordSearchState = BaseGameState & {
   foundWords: Record<string, { playerId: string; cells: number[] }>;
   timerEndsAt: number;
 };
-
-function pickCategory(used: string[]): string {
-  const available = CATEGORIES.filter((c) => !used.includes(c));
-  const pool = available.length > 0 ? available : CATEGORIES;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
 
 function tryPlaceWord(grid: (string | null)[], word: string): number[] | null {
   for (let attempt = 0; attempt < 200; attempt++) {
@@ -78,26 +63,21 @@ function tryPlaceWord(grid: (string | null)[], word: string): number[] | null {
   return null;
 }
 
-async function startRound(
-  prev: WordSearchState | null,
-  players: Player[],
-  config?: Record<string, unknown>
-): Promise<WordSearchState> {
+function startRound(prev: WordSearchState | null, players: Player[]): WordSearchState {
   void players;
-  const usedCategories = prev?.usedCategories ?? [];
-  const category =
-    typeof config?.category === "string" && CATEGORIES.includes(config.category)
-      ? config.category
-      : pickCategory(usedCategories);
-
-  const words = (await getWordList(category)).map((w) => w.toUpperCase());
-  const candidates = shuffle(words).slice(0, TARGET_WORD_COUNT);
+  const usedWords = prev?.usedWords ?? [];
+  // Pull more candidates than needed since not every word will find a
+  // placement on the grid (collisions get retried, not guaranteed).
+  const candidates = randomWords(MIN_WORD_LENGTH, MAX_WORD_LENGTH, TARGET_WORD_COUNT * 3, usedWords).map((w) =>
+    w.toUpperCase()
+  );
 
   const grid: (string | null)[] = new Array(CELL_COUNT).fill(null);
   const placements: Record<string, number[]> = {};
   const targetWords: string[] = [];
 
   for (const word of candidates) {
+    if (targetWords.length >= TARGET_WORD_COUNT) break;
     const cells = tryPlaceWord(grid, word);
     if (cells) {
       placements[word] = cells;
@@ -115,8 +95,7 @@ async function startRound(
     roundOver: false,
     gameOver: false,
     scoreDeltas: {},
-    category,
-    usedCategories: [...usedCategories, category],
+    usedWords: [...usedWords, ...targetWords.map((w) => w.toLowerCase())],
     gridSize: GRID_SIZE,
     grid: grid as string[],
     targetWords,
@@ -192,7 +171,6 @@ function redactState(state: WordSearchState): BaseGameState & Record<string, unk
     roundOver: state.roundOver,
     gameOver: state.gameOver,
     scoreDeltas: state.scoreDeltas,
-    category: state.category,
     gridSize: state.gridSize,
     grid: state.grid,
     targetWords: state.targetWords,

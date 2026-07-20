@@ -106,10 +106,9 @@ export interface GameModule<TState extends BaseGameState = BaseGameState> {
   /**
    * Build the next round's state. `prev` is null for the very first round.
    * `config` is whatever the host passed to `start_game`; only meaningful
-   * (and only ever populated) on that first call. May return a Promise -
-   * modes that pull from the curated word_bank table (Word Search, Wordle)
-   * need to; server/room.ts awaits this either way, so synchronous modules
-   * are unaffected.
+   * (and only ever populated) on that first call. May return a Promise, for
+   * modes that need an async step to build a round; server/room.ts awaits
+   * this either way, so synchronous modules are unaffected.
    */
   next(prev: TState | null, players: Player[], config?: Record<string, unknown>): TState | Promise<TState>;
   /** Apply a player action, returning the updated state. */

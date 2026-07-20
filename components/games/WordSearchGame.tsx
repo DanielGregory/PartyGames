@@ -9,7 +9,6 @@ import { formatCountdown, useCountdownMs } from "@/lib/useCountdown";
 type WordSearchView = {
   stage: "searching" | "reveal";
   round: number;
-  category: string;
   gridSize: number;
   grid: string[];
   targetWords: string[];
@@ -58,8 +57,7 @@ export function WordSearchGame({ game, players, send }: GameProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between text-sm text-muted">
-        <span className="capitalize">Theme: {view.category}</span>
+      <div className="flex items-center justify-end text-sm text-muted">
         {view.stage === "searching" && (
           <span className="font-mono font-semibold text-foreground">{formatCountdown(remainingMs)}</span>
         )}
