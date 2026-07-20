@@ -9,7 +9,7 @@ const FLEETS: Record<string, number[]> = {
 };
 const DEFAULT_FLEET = "quick";
 
-type Shot = { cell: number; hit: boolean };
+type Shot = { cell: number; hit: boolean; sunk: boolean };
 
 export type BattleshipState = BaseBoardGameState & {
   stage: "placement" | "battle" | "reveal";
@@ -17,7 +17,8 @@ export type BattleshipState = BaseBoardGameState & {
   ships: Record<string, number[][]>; // playerId -> list of ships, each a list of cell indices
   placementProgress: Record<string, number>; // playerId -> index into shipLengths for their next ship
   shots: Record<string, Shot[]>; // playerId -> shots that player has fired (at their opponent)
-  shotLog: { shooterId: string; cell: number; hit: boolean }[];
+  sunkShipCells: Record<string, number[][]>; // shooterId -> full cell lists of opponent ships they've sunk
+  shotLog: { shooterId: string; cell: number; hit: boolean; sunk: boolean }[];
   turn: TurnState;
 };
 
@@ -30,10 +31,12 @@ function startRound(
   const ships: Record<string, number[][]> = {};
   const placementProgress: Record<string, number> = {};
   const shots: Record<string, Shot[]> = {};
+  const sunkShipCells: Record<string, number[][]> = {};
   for (const id of ids) {
     ships[id] = [];
     placementProgress[id] = 0;
     shots[id] = [];
+    sunkShipCells[id] = [];
   }
   const fleetKey = typeof config?.fleet === "string" ? config.fleet : DEFAULT_FLEET;
   const shipLengths = prev?.shipLengths ?? FLEETS[fleetKey] ?? FLEETS[DEFAULT_FLEET];
@@ -50,6 +53,7 @@ function startRound(
     ships,
     placementProgress,
     shots,
+    sunkShipCells,
     shotLog: [],
     turn: initTurnOrder(ids, { shuffle: true }),
   };
@@ -126,17 +130,26 @@ function applyAction(
     if (alreadyShot) return state;
 
     const opponentShips = state.ships[opponent.id];
-    const hit = opponentShips.some((ship) => ship.includes(action.cell as number));
-    const shot: Shot = { cell: action.cell, hit };
-    const shots = { ...state.shots, [playerId]: [...state.shots[playerId], shot] };
-    const shotLog = [...state.shotLog, { shooterId: playerId, cell: action.cell, hit }];
+    const hitShip = opponentShips.find((ship) => ship.includes(action.cell as number)) ?? null;
+    const hit = hitShip !== null;
 
-    const hitCells = new Set(shots[playerId].filter((s) => s.hit).map((s) => s.cell));
+    const priorHitCells = new Set(state.shots[playerId].filter((s) => s.hit).map((s) => s.cell));
+    const hitCells = hit ? new Set([...priorHitCells, action.cell]) : priorHitCells;
+    const sunk = hit && hitShip.every((c) => hitCells.has(c));
+
+    const shot: Shot = { cell: action.cell, hit, sunk };
+    const shots = { ...state.shots, [playerId]: [...state.shots[playerId], shot] };
+    const shotLog = [...state.shotLog, { shooterId: playerId, cell: action.cell, hit, sunk }];
+    const sunkShipCells = sunk
+      ? { ...state.sunkShipCells, [playerId]: [...state.sunkShipCells[playerId], hitShip] }
+      : state.sunkShipCells;
+
     if (hit && allShipsSunk(opponentShips, hitCells)) {
       return {
         ...state,
         shots,
         shotLog,
+        sunkShipCells,
         stage: "reveal",
         roundOver: true,
         winner: playerId,
@@ -148,18 +161,25 @@ function applyAction(
       state.turn,
       players.filter((p) => !p.connected).map((p) => p.id)
     );
-    return { ...state, shots, shotLog, turn, currentTurn: currentPlayerId(turn) };
+    return { ...state, shots, shotLog, sunkShipCells, turn, currentTurn: currentPlayerId(turn) };
   }
 
   return state;
 }
 
-function buildGrid(ships: number[][], shots: Shot[], revealShips: boolean): (string | null)[] {
+function buildGrid(
+  ships: number[][],
+  shots: Shot[],
+  revealShips: boolean,
+  sunkCells: Set<number>
+): (string | null)[] {
   const grid: (string | null)[] = new Array(CELL_COUNT).fill(null);
   if (revealShips) {
     for (const ship of ships) for (const c of ship) grid[c] = "ship";
   }
-  for (const s of shots) grid[s.cell] = s.hit ? "hit" : "miss";
+  for (const s of shots) {
+    grid[s.cell] = sunkCells.has(s.cell) ? "sunk" : s.hit ? "hit" : "miss";
+  }
   return grid;
 }
 
@@ -190,8 +210,21 @@ function redactState(state: BattleshipState, forPlayerId: string): BaseBoardGame
     };
   }
 
-  const yourGrid = buildGrid(state.ships[forPlayerId] ?? [], opponentId ? state.shots[opponentId] ?? [] : [], true);
-  const opponentGrid = buildGrid([], state.shots[forPlayerId] ?? [], false);
+  // Sunk cells for your own fleet can be derived directly - you know every
+  // ship's cells, so any ship whose cells are all hit is sunk. Sunk cells
+  // for the opponent's (hidden) fleet can't be derived that way - instead
+  // we remember the exact cells of any ship *you've* sunk, recorded the
+  // moment it happened, without ever revealing their still-unsunk ships.
+  const myShips = state.ships[forPlayerId] ?? [];
+  const shotsAgainstMe = opponentId ? state.shots[opponentId] ?? [] : [];
+  const hitsAgainstMe = new Set(shotsAgainstMe.filter((s) => s.hit).map((s) => s.cell));
+  const mySunkCells = new Set(
+    myShips.filter((ship) => ship.every((c) => hitsAgainstMe.has(c))).flat()
+  );
+  const opponentSunkCells = new Set((state.sunkShipCells[forPlayerId] ?? []).flat());
+
+  const yourGrid = buildGrid(myShips, shotsAgainstMe, true, mySunkCells);
+  const opponentGrid = buildGrid([], state.shots[forPlayerId] ?? [], false, opponentSunkCells);
 
   if (state.stage === "reveal") {
     return {

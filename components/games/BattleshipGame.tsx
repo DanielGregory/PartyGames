@@ -12,7 +12,7 @@ type BattleshipView = {
   isYourTurn: boolean;
   shipLengths: number[];
   boardSize: number;
-  shotLog: { shooterId: string; cell: number; hit: boolean }[];
+  shotLog: { shooterId: string; cell: number; hit: boolean; sunk: boolean }[];
   // placement stage
   yourShips?: number[][];
   nextShipLength?: number | null;
@@ -104,6 +104,7 @@ export function BattleshipGame({ game, players, send }: GameProps) {
           disabled={!view.isYourTurn || view.stage !== "battle"}
           onCellClick={(_, index) => send({ type: "game_action", payload: { type: "fire", cell: index } })}
           renderCell={(cell, index) => {
+            if (cell === "sunk") return <span className="text-lg">☠️</span>;
             if (cell === "hit") return <span className="text-lg">🔥</span>;
             if (cell === "miss") return <span className="text-lg">💧</span>;
             if (view.stage === "reveal" && opponentShipCells.has(index)) {
@@ -111,6 +112,7 @@ export function BattleshipGame({ game, players, send }: GameProps) {
             }
             return null;
           }}
+          cellClassName={(cell) => (cell === "sunk" ? "!border-red-500 !bg-red-500/20" : "")}
         />
       </div>
 
@@ -120,11 +122,13 @@ export function BattleshipGame({ game, players, send }: GameProps) {
           columns={boardSize}
           cells={yourGrid}
           renderCell={(cell) => {
+            if (cell === "sunk") return <span className="text-lg">☠️</span>;
             if (cell === "hit") return <span className="text-lg">🔥</span>;
             if (cell === "miss") return <span className="text-lg">💧</span>;
             if (cell === "ship") return <span className="h-[70%] w-[70%] rounded-sm bg-accent" />;
             return null;
           }}
+          cellClassName={(cell) => (cell === "sunk" ? "!border-red-500 !bg-red-500/20" : "")}
         />
       </div>
 
@@ -134,9 +138,11 @@ export function BattleshipGame({ game, players, send }: GameProps) {
             .slice(-4)
             .reverse()
             .map((s, i) => (
-              <p key={i}>
+              <p key={i} className={s.sunk ? "font-semibold text-red-400" : undefined}>
                 {nameOf(players, s.shooterId)} fired at {cellLabel(s.cell, boardSize)} —{" "}
-                <span className={s.hit ? "text-red-400" : "text-muted"}>{s.hit ? "hit!" : "miss"}</span>
+                <span className={s.sunk ? "text-red-400" : s.hit ? "text-red-400" : "text-muted"}>
+                  {s.sunk ? "sunk a ship! ☠️" : s.hit ? "hit!" : "miss"}
+                </span>
               </p>
             ))}
         </div>
