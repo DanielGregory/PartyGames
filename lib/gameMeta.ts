@@ -39,6 +39,13 @@ export const GAME_LIST: GameMeta[] = [
     description: "Vote for the player most likely to... and see the results live.",
     minPlayers: 3,
   },
+  {
+    id: "quizmaster",
+    label: "Quiz Master",
+    emoji: "🎤",
+    description: "One player writes a question and the answer. Everyone else guesses, then the quiz master decides who's right.",
+    minPlayers: 3,
+  },
 ];
 
 export function gameMeta(id: GameId): GameMeta {
