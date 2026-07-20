@@ -28,6 +28,20 @@ export type BaseGameState = {
   gameOver: boolean;
 };
 
+// Extended envelope for future turn-based/board game modes (Tic-Tac-Toe,
+// Connect Four, Mancala, Battleship, ...). None of the current five modes
+// use this - they're all "everyone acts simultaneously each round," not
+// "players take sequential turns," so they stay on plain BaseGameState. A
+// new turn-based mode's state type extends this instead, pairing it with
+// server/turnManager.ts for whose-turn-is-it/advance/timeout logic and
+// components/Board.tsx for rendering. `winner` is a single player id (or
+// null) since that's the shape a turn-based board game's outcome takes;
+// round-based modes express their outcome as scoreDeltas instead.
+export type BaseBoardGameState = BaseGameState & {
+  currentTurn: string | null;
+  winner: string | null;
+};
+
 export type PublicRoomState = {
   code: string;
   hostId: string | null;
