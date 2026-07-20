@@ -16,11 +16,11 @@ export function ScoreboardOverlay({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 sm:items-center sm:justify-center"
+      className="animate-backdrop-fade fixed inset-0 z-50 flex flex-col justify-end bg-black/60 sm:items-center sm:justify-center"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[80vh] flex-col gap-4 rounded-t-3xl border border-card-border bg-background p-5 sm:w-full sm:max-w-md sm:rounded-3xl"
+        className="animate-sheet-up flex max-h-[80vh] flex-col gap-4 rounded-t-3xl border border-card-border bg-background p-5 sm:w-full sm:max-w-md sm:rounded-3xl sm:animate-bounce-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

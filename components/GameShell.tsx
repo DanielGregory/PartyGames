@@ -29,7 +29,7 @@ export function GameShell({ room, game, you, send }: Props) {
   const [showScoreboard, setShowScoreboard] = useState(false);
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-5 py-8">
+    <main className="animate-fade-slide-in mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-5 py-8">
       <div className="flex items-center justify-between text-sm text-muted">
         <span>
           {room.code} · Round {game.round}

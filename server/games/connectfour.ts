@@ -15,6 +15,7 @@ export type ConnectFourState = BaseBoardGameState & {
   cells: (string | null)[]; // row-major, index 0 = top-left
   turn: TurnState;
   isDraw: boolean;
+  winningLine: number[] | null;
 };
 
 function boardPreset(config?: Record<string, unknown>): { columns: number; rows: number } {
@@ -46,6 +47,7 @@ function startRound(
     cells: new Array(columns * rows).fill(null),
     turn,
     isDraw: false,
+    winningLine: null,
   };
 }
 
@@ -63,23 +65,23 @@ const DIRECTIONS: [number, number][] = [
   [1, -1],
 ];
 
-function wins4InARow(
+function winningLineThrough(
   cells: (string | null)[],
   columns: number,
   rows: number,
   row: number,
   column: number
-): boolean {
+): number[] | null {
   const player = cells[row * columns + column];
-  if (!player) return false;
+  if (!player) return null;
 
   for (const [dr, dc] of DIRECTIONS) {
-    let count = 1;
+    const line: number[] = [row * columns + column];
 
     let r = row + dr;
     let c = column + dc;
     while (r >= 0 && r < rows && c >= 0 && c < columns && cells[r * columns + c] === player) {
-      count++;
+      line.push(r * columns + c);
       r += dr;
       c += dc;
     }
@@ -87,15 +89,15 @@ function wins4InARow(
     r = row - dr;
     c = column - dc;
     while (r >= 0 && r < rows && c >= 0 && c < columns && cells[r * columns + c] === player) {
-      count++;
+      line.push(r * columns + c);
       r -= dr;
       c -= dc;
     }
 
-    if (count >= 4) return true;
+    if (line.length >= 4) return line;
   }
 
-  return false;
+  return null;
 }
 
 function applyAction(
@@ -115,13 +117,15 @@ function applyAction(
   const cells = [...state.cells];
   cells[row * state.columns + action.column] = playerId;
 
-  if (wins4InARow(cells, state.columns, state.rows, row, action.column)) {
+  const winningLine = winningLineThrough(cells, state.columns, state.rows, row, action.column);
+  if (winningLine) {
     return {
       ...state,
       cells,
       stage: "reveal",
       roundOver: true,
       winner: playerId,
+      winningLine,
       scoreDeltas: { [playerId]: 3 },
     };
   }
@@ -149,6 +153,7 @@ function redactState(state: ConnectFourState, forPlayerId: string): BaseBoardGam
     currentTurn: state.currentTurn,
     winner: state.winner,
     isDraw: state.isDraw,
+    winningLine: state.winningLine,
     columns: state.columns,
     rows: state.rows,
     cells: state.cells,

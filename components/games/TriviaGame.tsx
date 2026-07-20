@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { Card } from "../ui";
+import { Countdown } from "../Countdown";
 import { GameProps, nameOf } from "./types";
-import { formatCountdown, useCountdownMs } from "@/lib/useCountdown";
+import { useCountdownMs } from "@/lib/useCountdown";
 
 type TriviaView = {
   stage: "question" | "reveal";
@@ -42,9 +43,7 @@ export function TriviaGame({ game, players, send }: GameProps) {
           <span>
             Round {view.round}/{view.totalRounds}
           </span>
-          <span className="font-mono font-semibold text-foreground">
-            {formatCountdown(remainingMs)}
-          </span>
+          <Countdown remainingMs={remainingMs} />
         </div>
         <Card className="text-center">
           <p className="text-xl font-bold">{view.question}</p>
@@ -91,9 +90,9 @@ export function TriviaGame({ game, players, send }: GameProps) {
               key={i}
               className={`rounded-2xl border px-5 py-4 ${
                 isCorrect
-                  ? "border-emerald-400 bg-emerald-400/10"
+                  ? "animate-bounce-in border-emerald-400 bg-emerald-400/10"
                   : isYourWrongPick
-                    ? "border-red-400 bg-red-400/10"
+                    ? "animate-shake border-red-400 bg-red-400/10"
                     : "border-card-border bg-card"
               }`}
             >

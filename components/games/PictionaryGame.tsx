@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, TextField } from "../ui";
+import { Countdown } from "../Countdown";
 import { GameProps, nameOf } from "./types";
-import { formatCountdown, useCountdownMs } from "@/lib/useCountdown";
+import { useCountdownMs } from "@/lib/useCountdown";
 
 type Point = { x: number; y: number };
 type Stroke = { points: Point[]; color: string; lineWidth: number };
@@ -160,7 +161,11 @@ export function PictionaryGame({ game, players, you, send }: GameProps) {
           <p className="text-lg font-semibold">
             {view.isDrawer ? "Pick a word to draw" : `${nameOf(players, view.drawerId)} is picking a word…`}
           </p>
-          <p className="mt-1 font-mono text-sm text-muted">{formatCountdown(chooseRemaining)}</p>
+          <Countdown
+            remainingMs={chooseRemaining}
+            className="mt-1 font-mono text-sm"
+            colorClassName="text-muted"
+          />
         </Card>
         {view.isDrawer && (
           <div className="flex flex-col gap-2">
@@ -185,9 +190,7 @@ export function PictionaryGame({ game, players, you, send }: GameProps) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between text-sm text-muted">
         <span>{view.isDrawer ? "You're drawing" : `${nameOf(players, view.drawerId)} is drawing`}</span>
-        {view.stage === "drawing" && (
-          <span className="font-mono font-semibold text-foreground">{formatCountdown(drawRemaining)}</span>
-        )}
+        {view.stage === "drawing" && <Countdown remainingMs={drawRemaining} />}
       </div>
 
       {!view.isDrawer && (

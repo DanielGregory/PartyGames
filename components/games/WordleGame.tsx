@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Card } from "../ui";
+import { Countdown } from "../Countdown";
 import { GameProps, nameOf } from "./types";
-import { formatCountdown, useCountdownMs } from "@/lib/useCountdown";
+import { useCountdownMs } from "@/lib/useCountdown";
 
 type LetterState = "green" | "yellow" | "gray";
 type Guess = { word: string; feedback: LetterState[] };
@@ -34,7 +35,10 @@ export function WordleGame({ game, players, you, send }: GameProps) {
   const view = game as unknown as WordleView;
   const remainingMs = useCountdownMs(view.timerEndsAt);
   const [draft, setDraft] = useState("");
+  const [pending, setPending] = useState<string | null>(null);
+  const [shake, setShake] = useState(false);
   const timedOutRound = useRef<number | null>(null);
+  const guessCountRef = useRef(view.yourGuesses.length);
   const connectedCount = players.filter((p) => p.connected).length;
 
   useEffect(() => {
@@ -44,6 +48,40 @@ export function WordleGame({ game, players, you, send }: GameProps) {
     timedOutRound.current = view.round;
     send({ type: "game_action", payload: { type: "time_up" } });
   }, [remainingMs, view.stage, view.round, send]);
+
+  // A submitted guess either shows up in yourGuesses (accepted) or doesn't
+  // (rejected - wrong length or not a real word). If it hasn't landed
+  // within half a second, assume it was rejected and shake the row so the
+  // typed word stays put for the player to fix, instead of silently
+  // vanishing.
+  useEffect(() => {
+    if (view.yourGuesses.length > guessCountRef.current) {
+      setPending(null);
+      setDraft("");
+    }
+    guessCountRef.current = view.yourGuesses.length;
+  }, [view.yourGuesses.length]);
+
+  useEffect(() => {
+    if (pending === null) return;
+    const timeout = setTimeout(() => {
+      setShake(true);
+      setPending(null);
+      setTimeout(() => setShake(false), 400);
+    }, 600);
+    return () => clearTimeout(timeout);
+  }, [pending]);
+
+  // Flip-reveal only the row that was just completed, not every row on
+  // every re-render.
+  const [justRevealedRow, setJustRevealedRow] = useState<number | null>(null);
+  const revealedCountRef = useRef(view.yourGuesses.length);
+  useEffect(() => {
+    if (view.yourGuesses.length > revealedCountRef.current) {
+      setJustRevealedRow(view.yourGuesses.length - 1);
+    }
+    revealedCountRef.current = view.yourGuesses.length;
+  }, [view.yourGuesses.length]);
 
   const done = view.solved || view.guessesRemaining <= 0 || view.stage === "reveal";
 
@@ -67,18 +105,16 @@ export function WordleGame({ game, players, you, send }: GameProps) {
   }
 
   function submit() {
-    if (draft.length !== view.wordLength) return;
+    if (draft.length !== view.wordLength || pending !== null) return;
+    setPending(draft);
     send({ type: "game_action", payload: { type: "guess", word: draft } });
-    setDraft("");
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between text-sm text-muted">
         <span>{view.finishedCount}/{connectedCount} finished</span>
-        {view.stage === "guessing" && (
-          <span className="font-mono font-semibold text-foreground">{formatCountdown(remainingMs)}</span>
-        )}
+        {view.stage === "guessing" && <Countdown remainingMs={remainingMs} />}
       </div>
 
       <div className="mx-auto flex flex-col gap-1.5">
@@ -90,14 +126,16 @@ export function WordleGame({ game, players, you, send }: GameProps) {
             : isCurrent
               ? draft.padEnd(view.wordLength).split("")
               : " ".repeat(view.wordLength).split("");
+          const rowJustRevealed = guess && rowIndex === justRevealedRow;
           return (
-            <div key={rowIndex} className="flex gap-1.5">
+            <div key={rowIndex} className={`flex gap-1.5 ${isCurrent && shake ? "animate-shake" : ""}`}>
               {letters.map((letter, i) => (
                 <div
                   key={i}
+                  style={rowJustRevealed ? { animationDelay: `${i * 0.12}s` } : undefined}
                   className={`flex h-11 w-11 items-center justify-center rounded-lg border text-lg font-bold uppercase ${
-                    guess ? TILE_COLORS[guess.feedback[i]] : "border-card-border bg-card"
-                  }`}
+                    rowJustRevealed ? "animate-flip-in" : ""
+                  } ${guess ? TILE_COLORS[guess.feedback[i]] : "border-card-border bg-card"}`}
                 >
                   {letter.trim()}
                 </div>

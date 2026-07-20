@@ -72,7 +72,7 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-5 py-8">
+    <main className="animate-fade-slide-in mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-5 py-8">
       <div className="text-center">
         <p className="text-sm text-muted">Room code</p>
         <p className="text-5xl font-extrabold tracking-[0.2em]">{room.code}</p>

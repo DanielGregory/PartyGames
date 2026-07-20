@@ -24,7 +24,7 @@ export function ScoreboardPanel({
   onEndGame: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-4 rounded-3xl border border-card-border bg-card p-5">
+    <div className="animate-bounce-in flex flex-col gap-4 rounded-3xl border border-card-border bg-card p-5">
       <p className="text-center text-sm font-semibold text-muted">
         {gameOver ? "Final scores" : `Scoreboard · Round ${round}`}
       </p>

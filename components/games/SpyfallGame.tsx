@@ -1,9 +1,10 @@
 "use client";
 
 import { Button, Card } from "../ui";
+import { Countdown } from "../Countdown";
 import { PlayerList } from "../PlayerList";
 import { GameProps, nameOf } from "./types";
-import { formatCountdown, useCountdownMs } from "@/lib/useCountdown";
+import { useCountdownMs } from "@/lib/useCountdown";
 
 type SpyfallView = {
   stage: "discussion" | "voting" | "reveal";
@@ -19,7 +20,7 @@ type SpyfallView = {
 
 export function SpyfallGame({ game, players, you, send }: GameProps) {
   const view = game as unknown as SpyfallView;
-  const timeLeft = formatCountdown(useCountdownMs(view.timerEndsAt));
+  const remainingMs = useCountdownMs(view.timerEndsAt);
   const connected = players.filter((p) => p.connected);
 
   if (view.stage === "discussion") {
@@ -46,7 +47,7 @@ export function SpyfallGame({ game, players, you, send }: GameProps) {
 
         <div className="text-center">
           <p className="text-sm text-muted">Discuss out loud, then vote</p>
-          <p className="font-mono text-4xl font-bold">{timeLeft}</p>
+          <Countdown remainingMs={remainingMs} className="font-mono text-4xl font-bold" />
         </div>
 
         {view.isSpy && (

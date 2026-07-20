@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Board } from "../Board";
 import { Card } from "../ui";
+import { Countdown } from "../Countdown";
 import { GameProps, nameOf } from "./types";
-import { formatCountdown, useCountdownMs } from "@/lib/useCountdown";
+import { useCountdownMs } from "@/lib/useCountdown";
 
 type WordSearchView = {
   stage: "searching" | "reveal";
@@ -187,9 +188,7 @@ export function WordSearchGame({ game, players, send }: GameProps) {
               ? `${lastWord} ✓`
               : "Drag across letters"}
         </span>
-        {view.stage === "searching" && (
-          <span className="font-mono font-semibold text-foreground">{formatCountdown(remainingMs)}</span>
-        )}
+        {view.stage === "searching" && <Countdown remainingMs={remainingMs} />}
       </div>
 
       <div
@@ -214,7 +213,7 @@ export function WordSearchGame({ game, players, send }: GameProps) {
         {circles.map((c) => (
           <div
             key={c.key}
-            className="pointer-events-none absolute rounded-full border-2 border-emerald-400/80 bg-emerald-400/10"
+            className="animate-bounce-in pointer-events-none absolute rounded-full border-2 border-emerald-400/80 bg-emerald-400/10"
             style={{
               left: c.left,
               top: c.top,

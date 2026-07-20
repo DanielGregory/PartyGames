@@ -10,6 +10,7 @@ type ConnectFourView = {
   currentTurn: string | null;
   winner: string | null;
   isDraw: boolean;
+  winningLine: number[] | null;
   columns: number;
   rows: number;
   cells: (string | null)[];
@@ -23,6 +24,7 @@ export function ConnectFourGame({ game, players, send }: GameProps) {
   const view = game as unknown as ConnectFourView;
   const prevCellsRef = useRef<(string | null)[] | null>(null);
   const [justDropped, setJustDropped] = useState<number | null>(null);
+  const winningCells = new Set(view.winningLine ?? []);
 
   // Animate only the disc that was just placed, by diffing against the
   // previous cells array - re-rendering an already-applied animation class
@@ -54,7 +56,7 @@ export function ConnectFourGame({ game, players, send }: GameProps) {
             {view.isYourTurn ? "Your turn" : `${nameOf(players, view.currentTurn)}'s turn`}
           </p>
         ) : (
-          <p className="text-lg font-semibold">
+          <p className="animate-bounce-in text-lg font-semibold">
             {view.isDraw ? "🤝 It's a draw!" : `🎉 ${nameOf(players, view.winner)} wins!`}
           </p>
         )}
@@ -71,7 +73,7 @@ export function ConnectFourGame({ game, players, send }: GameProps) {
           <span
             className={`h-[78%] w-[78%] rounded-full ${colorFor(cell) ?? "bg-background/40"} ${
               index === justDropped ? "animate-disc-drop" : ""
-            }`}
+            } ${winningCells.has(index) ? "animate-win-glow" : ""}`}
           />
         )}
       />

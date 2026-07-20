@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Board } from "../Board";
+import { Countdown } from "../Countdown";
 import { GameProps, nameOf } from "./types";
-import { formatCountdown, useCountdownMs } from "@/lib/useCountdown";
+import { useCountdownMs } from "@/lib/useCountdown";
 
 type BoggleView = {
   stage: "playing" | "reveal";
@@ -110,7 +111,7 @@ export function BoggleGame({ game, players, send }: GameProps) {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between text-sm text-muted">
           <span>{view.totalWordsFound} words found so far</span>
-          <span className="font-mono font-semibold text-foreground">{formatCountdown(remainingMs)}</span>
+          <Countdown remainingMs={remainingMs} />
         </div>
 
         <p className="text-center text-lg font-bold uppercase tracking-wide text-accent">
@@ -140,7 +141,7 @@ export function BoggleGame({ game, players, send }: GameProps) {
             {view.yourWords.map((word) => (
               <span
                 key={word}
-                className="rounded-full border border-card-border bg-card px-3 py-1 text-sm uppercase"
+                className="animate-bounce-in rounded-full border border-card-border bg-card px-3 py-1 text-sm uppercase"
               >
                 {word}
               </span>
@@ -162,7 +163,7 @@ export function BoggleGame({ game, players, send }: GameProps) {
           return (
             <div
               key={word}
-              className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${
+              className={`animate-fade-slide-in flex items-center justify-between rounded-2xl border px-4 py-3 ${
                 unique ? "border-emerald-400 bg-emerald-400/10" : "border-card-border bg-card opacity-60"
               }`}
             >

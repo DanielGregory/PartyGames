@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import type { Player } from "@/server/types";
 
 export function PlayerList({
@@ -12,6 +15,33 @@ export function PlayerList({
   showScores?: boolean;
 }) {
   const sorted = showScores ? [...players].sort((a, b) => b.score - a.score) : players;
+  const prevScores = useRef<Record<string, number> | null>(null);
+  const [popups, setPopups] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!showScores) return;
+    const prev = prevScores.current;
+    prevScores.current = Object.fromEntries(players.map((p) => [p.id, p.score]));
+    if (!prev) return; // don't pop up on first mount, only on real increases
+
+    const gained = players.filter((p) => (prev[p.id] ?? p.score) < p.score);
+    if (gained.length === 0) return;
+
+    setPopups((existing) => {
+      const next = { ...existing };
+      for (const p of gained) next[p.id] = p.score - (prev[p.id] ?? p.score);
+      return next;
+    });
+    const ids = gained.map((p) => p.id);
+    const timeout = setTimeout(() => {
+      setPopups((existing) => {
+        const next = { ...existing };
+        for (const id of ids) delete next[id];
+        return next;
+      });
+    }, 1100);
+    return () => clearTimeout(timeout);
+  }, [players, showScores]);
 
   return (
     <ul className="flex flex-col gap-2">
@@ -32,7 +62,16 @@ export function PlayerList({
             </span>
             {player.id === hostId && <span title="Host">👑</span>}
           </div>
-          {showScores && <span className="font-mono font-semibold text-accent">{player.score}</span>}
+          {showScores && (
+            <span className="relative font-mono font-semibold text-accent">
+              {player.score}
+              {popups[player.id] !== undefined && (
+                <span className="animate-float-up-fade pointer-events-none absolute -top-1 right-0 text-sm font-bold text-emerald-400">
+                  +{popups[player.id]}
+                </span>
+              )}
+            </span>
+          )}
         </li>
       ))}
     </ul>
