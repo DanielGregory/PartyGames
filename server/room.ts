@@ -186,7 +186,7 @@ export async function handleMessage(
         throw new RoomActionError(`${mod.meta.label} needs at least ${mod.meta.minPlayers} players.`);
       }
       room.game_id = mod.meta.id;
-      room.game_state = mod.next(null, players);
+      room.game_state = mod.next(null, players, message.config);
       room.status = "playing";
       room.round = room.game_state.round;
       break;
@@ -209,7 +209,7 @@ export async function handleMessage(
 
     case "next_round": {
       if (!isHost || room.status !== "playing" || !room.game_id || !room.game_state) break;
-      if (!room.game_state.roundOver) break;
+      if (!room.game_state.roundOver || room.game_state.gameOver) break;
       const mod = gameRegistry[room.game_id];
       room.game_state = mod.next(room.game_state, players);
       room.round = room.game_state.round;

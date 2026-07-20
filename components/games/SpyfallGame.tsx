@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Button, Card } from "../ui";
 import { PlayerList } from "../PlayerList";
 import { GameProps, nameOf } from "./types";
+import { formatCountdown, useCountdownMs } from "@/lib/useCountdown";
 
 type SpyfallView = {
   stage: "discussion" | "voting" | "reveal";
@@ -17,20 +17,9 @@ type SpyfallView = {
   result?: { spyId: string; location: string; votes: Record<string, string>; spyCaught: boolean };
 };
 
-function useCountdown(endsAt: number) {
-  const [remaining, setRemaining] = useState(() => Math.max(0, endsAt - Date.now()));
-  useEffect(() => {
-    const id = setInterval(() => setRemaining(Math.max(0, endsAt - Date.now())), 1000);
-    return () => clearInterval(id);
-  }, [endsAt]);
-  const minutes = Math.floor(remaining / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
 export function SpyfallGame({ game, players, you, send }: GameProps) {
   const view = game as unknown as SpyfallView;
-  const timeLeft = useCountdown(view.timerEndsAt);
+  const timeLeft = formatCountdown(useCountdownMs(view.timerEndsAt));
   const connected = players.filter((p) => p.connected);
 
   if (view.stage === "discussion") {

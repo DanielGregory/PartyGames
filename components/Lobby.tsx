@@ -1,15 +1,27 @@
 "use client";
 
+import { useState } from "react";
 import type { RoomView } from "@/lib/useRoom";
 import { GAME_LIST } from "@/lib/gameMeta";
 import { PlayerList } from "./PlayerList";
 import { QRLink } from "./QRLink";
 import { Button, Card } from "./ui";
 
+const TRIVIA_ROUND_OPTIONS = [3, 5, 10, 15];
+
 export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable<RoomView["room"]>; you: NonNullable<RoomView["you"]> }) {
   const connectedCount = room.players.filter((p) => p.connected).length;
   const selected = room.selectedGame ? GAME_LIST.find((g) => g.id === room.selectedGame) : null;
   const canStart = selected ? connectedCount >= selected.minPlayers : false;
+  const [triviaRounds, setTriviaRounds] = useState(5);
+
+  function startGame() {
+    if (room.selectedGame === "trivia") {
+      send({ type: "start_game", config: { totalRounds: triviaRounds } });
+    } else {
+      send({ type: "start_game" });
+    }
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-5 py-8">
@@ -53,10 +65,28 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
             );
           })}
 
-          <Button
-            disabled={!canStart}
-            onClick={() => send({ type: "start_game" })}
-          >
+          {room.selectedGame === "trivia" && (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-semibold text-muted">Number of rounds</p>
+              <div className="flex gap-2">
+                {TRIVIA_ROUND_OPTIONS.map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setTriviaRounds(n)}
+                    className={`flex-1 rounded-xl border px-3 py-2 font-semibold transition-colors ${
+                      triviaRounds === n
+                        ? "border-accent bg-accent/10"
+                        : "border-card-border bg-card hover:border-accent/50"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Button disabled={!canStart} onClick={startGame}>
             {selected
               ? canStart
                 ? `Start ${selected.label}`

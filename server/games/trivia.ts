@@ -1,26 +1,41 @@
 import type { BaseGameState, GameModule, Player } from "../types";
 import { TRIVIA_QUESTIONS, pickUnused } from "./content";
 
+const ANSWER_MS = 20_000;
+const DEFAULT_TOTAL_ROUNDS = 5;
+
 export type TriviaState = BaseGameState & {
   stage: "question" | "reveal";
   usedIndices: number[];
+  totalRounds: number;
+  timerEndsAt: number;
   question: string;
   choices: string[];
   correctIndex: number;
   answers: Record<string, number>;
 };
 
-function startRound(prev: TriviaState | null, players: Player[]): TriviaState {
+function startRound(
+  prev: TriviaState | null,
+  players: Player[],
+  config?: Record<string, unknown>
+): TriviaState {
   void players;
   const usedIndices = prev?.usedIndices ?? [];
   const { item, index } = pickUnused(TRIVIA_QUESTIONS, usedIndices);
+  const totalRounds =
+    prev?.totalRounds ??
+    (typeof config?.totalRounds === "number" ? config.totalRounds : DEFAULT_TOTAL_ROUNDS);
 
   return {
     stage: "question",
     round: (prev?.round ?? 0) + 1,
     roundOver: false,
+    gameOver: false,
     scoreDeltas: {},
     usedIndices: [...usedIndices, index],
+    totalRounds,
+    timerEndsAt: Date.now() + ANSWER_MS,
     question: item.question,
     choices: item.choices,
     correctIndex: item.correctIndex,
@@ -28,9 +43,31 @@ function startRound(prev: TriviaState | null, players: Player[]): TriviaState {
   };
 }
 
+function reveal(state: TriviaState, answers: Record<string, number>): TriviaState {
+  const scoreDeltas: Record<string, number> = {};
+  for (const [pid, idx] of Object.entries(answers)) {
+    if (idx === state.correctIndex) {
+      scoreDeltas[pid] = (scoreDeltas[pid] ?? 0) + 2;
+    }
+  }
+
+  return {
+    ...state,
+    answers,
+    stage: "reveal",
+    roundOver: true,
+    gameOver: state.round >= state.totalRounds,
+    scoreDeltas,
+  };
+}
+
 function applyAction(state: TriviaState, playerId: string, payload: unknown, players: Player[]): TriviaState {
   const action = payload as { type: string; index?: number };
   const connected = players.filter((p) => p.connected).map((p) => p.id);
+
+  if (action.type === "time_up" && state.stage === "question") {
+    return reveal(state, state.answers);
+  }
 
   if (action.type === "answer" && state.stage === "question" && typeof action.index === "number") {
     if (state.answers[playerId] !== undefined) return state;
@@ -38,15 +75,7 @@ function applyAction(state: TriviaState, playerId: string, payload: unknown, pla
     const allAnswered = connected.every((id) => answers[id] !== undefined);
 
     if (!allAnswered) return { ...state, answers };
-
-    const scoreDeltas: Record<string, number> = {};
-    for (const [pid, idx] of Object.entries(answers)) {
-      if (idx === state.correctIndex) {
-        scoreDeltas[pid] = (scoreDeltas[pid] ?? 0) + 2;
-      }
-    }
-
-    return { ...state, answers, stage: "reveal", roundOver: true, scoreDeltas };
+    return reveal(state, answers);
   }
 
   return state;
@@ -57,7 +86,10 @@ function redactState(state: TriviaState, forPlayerId: string): BaseGameState & R
     stage: state.stage,
     round: state.round,
     roundOver: state.roundOver,
+    gameOver: state.gameOver,
     scoreDeltas: state.scoreDeltas,
+    totalRounds: state.totalRounds,
+    timerEndsAt: state.timerEndsAt,
     question: state.question,
     choices: state.choices,
     hasAnswered: state.answers[forPlayerId] !== undefined,

@@ -34,6 +34,7 @@ export function GameShell({ room, game, you, send }: Props) {
           youId={you.id}
           isHost={you.isHost}
           round={game.round}
+          gameOver={game.gameOver}
           scoreDeltas={game.scoreDeltas}
           onNextRound={() => send({ type: "next_round" })}
           onEndGame={() => send({ type: "end_game" })}

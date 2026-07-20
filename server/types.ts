@@ -22,6 +22,10 @@ export type BaseGameState = {
   round: number;
   roundOver: boolean;
   scoreDeltas: Record<string, number>;
+  // True once the game has reached its final round's reveal (for modes that
+  // support a fixed round count). Modes that don't (host manually ends the
+  // game whenever) just always report false.
+  gameOver: boolean;
 };
 
 export type PublicRoomState = {
@@ -38,7 +42,7 @@ export type PublicRoomState = {
 // the private-channel token the client needs before it can receive anything.
 export type ClientMessage =
   | { type: "select_game"; gameId: GameId }
-  | { type: "start_game" }
+  | { type: "start_game"; config?: Record<string, unknown> }
   | { type: "game_action"; payload: unknown }
   | { type: "next_round" }
   | { type: "end_game" };
@@ -62,8 +66,12 @@ export type GameMeta = {
 
 export interface GameModule<TState extends BaseGameState = BaseGameState> {
   meta: GameMeta;
-  /** Build the next round's state. `prev` is null for the very first round. */
-  next(prev: TState | null, players: Player[]): TState;
+  /**
+   * Build the next round's state. `prev` is null for the very first round.
+   * `config` is whatever the host passed to `start_game`; only meaningful
+   * (and only ever populated) on that first call.
+   */
+  next(prev: TState | null, players: Player[], config?: Record<string, unknown>): TState;
   /** Apply a player action, returning the updated state. */
   action(state: TState, playerId: string, payload: unknown, players: Player[]): TState;
   /** Produce the JSON-safe view of `state` that `forPlayerId` is allowed to see. */
