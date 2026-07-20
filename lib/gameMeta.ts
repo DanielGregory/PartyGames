@@ -1,5 +1,15 @@
 import type { GameId } from "@/server/types";
 
+export type GameCategory = "party" | "word" | "twoplayer";
+
+export const CATEGORY_ORDER: GameCategory[] = ["party", "word", "twoplayer"];
+
+export const CATEGORY_META: Record<GameCategory, { label: string; emoji: string }> = {
+  party: { label: "Party Games", emoji: "🎉" },
+  word: { label: "Word Games", emoji: "📝" },
+  twoplayer: { label: "2-Player Games", emoji: "🎲" },
+};
+
 // Kept separate from server/games/registry.ts (server-only) so the client
 // bundle never pulls in game logic or answer banks.
 export type GameMeta = {
@@ -7,6 +17,7 @@ export type GameMeta = {
   label: string;
   emoji: string;
   description: string;
+  category: GameCategory;
   minPlayers: number;
   // Undefined means no cap. Classical board games (Tic-Tac-Toe, Chess,
   // Battleship, ...) will mostly set this to exactly 2.
@@ -52,6 +63,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Spyfall",
     emoji: "🕵️",
     description: "Everyone shares a secret location except one spy. Discuss in person, then vote out the spy.",
+    category: "party",
     minPlayers: 3,
     settings: [
       minutesSetting("discussionMinutes", "Discussion timer", [3, 5, 8, 10], 8),
@@ -63,6 +75,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Fibbing It",
     emoji: "🤥",
     description: "Bluff your way to points. Write a fake answer, then guess which answer is the real one.",
+    category: "party",
     minPlayers: 3,
     settings: [roundsSetting(0)],
   },
@@ -71,6 +84,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Trivia",
     emoji: "🧠",
     description: "Answer multiple-choice questions faster and more accurately than everyone else.",
+    category: "party",
     minPlayers: 2,
     settings: [
       roundsSetting(5, [3, 5, 10, 15]),
@@ -87,6 +101,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Most Likely To",
     emoji: "👉",
     description: "Vote for the player most likely to... and see the results live.",
+    category: "party",
     minPlayers: 3,
     settings: [roundsSetting(0)],
   },
@@ -95,6 +110,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Quiz Master",
     emoji: "🎤",
     description: "One player writes a question and the answer. Everyone else guesses, then the quiz master decides who's right.",
+    category: "party",
     minPlayers: 3,
     settings: [roundsSetting(0)],
   },
@@ -103,6 +119,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Connect Four",
     emoji: "🔴",
     description: "Drop discs to connect four in a row - horizontally, vertically, or diagonally.",
+    category: "twoplayer",
     minPlayers: 2,
     maxPlayers: 2,
     settings: [
@@ -123,6 +140,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Hangman",
     emoji: "🔤",
     description: "Take turns guessing letters to reveal the secret word before you run out of guesses.",
+    category: "word",
     minPlayers: 2,
     settings: [
       {
@@ -138,6 +156,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Battleship",
     emoji: "🚢",
     description: "Secretly place your fleet, then take turns firing at your opponent's grid to sink it.",
+    category: "twoplayer",
     minPlayers: 2,
     maxPlayers: 2,
     settings: [
@@ -157,6 +176,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Guess Who",
     emoji: "❓",
     description: "You're secretly assigned a character. Ask yes/no questions to guess your opponent's before they guess yours.",
+    category: "twoplayer",
     minPlayers: 2,
     maxPlayers: 2,
     settings: [
@@ -173,6 +193,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Boggle",
     emoji: "🔠",
     description: "Find as many words as you can in the letter grid before time runs out. Longer words score more.",
+    category: "word",
     minPlayers: 2,
     settings: [
       minutesSetting("roundMinutes", "Round timer", [2, 3, 4, 5], 3),
@@ -198,6 +219,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Word Search",
     emoji: "🔎",
     description: "Race to find every hidden word in the grid before time runs out.",
+    category: "word",
     minPlayers: 2,
     settings: [
       minutesSetting("roundMinutes", "Round timer", [2, 3, 4, 5], 3),
@@ -224,6 +246,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Wordle",
     emoji: "🟩",
     description: "Guess the secret word in one more try than its length. Fewer guesses score more.",
+    category: "word",
     minPlayers: 2,
     settings: [
       {
@@ -240,6 +263,7 @@ export const GAME_LIST: GameMeta[] = [
     label: "Pictionary",
     emoji: "🎨",
     description: "One player draws a secret word while everyone else races to guess it.",
+    category: "party",
     minPlayers: 3,
     settings: [roundsSetting(0), minutesSetting("roundMinutes", "Drawing timer", [1, 2, 3, 5], 2)],
   },

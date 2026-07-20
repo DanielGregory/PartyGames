@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { RoomView } from "@/lib/useRoom";
-import { GAME_LIST, type GameMeta } from "@/lib/gameMeta";
+import { CATEGORY_META, CATEGORY_ORDER, GAME_LIST, type GameMeta } from "@/lib/gameMeta";
 import { PlayerList } from "./PlayerList";
 import { QRLink } from "./QRLink";
 import { Button, Card } from "./ui";
@@ -92,24 +92,36 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
       {you.isHost ? (
         <div className="flex flex-col gap-3">
           <p className="text-sm font-semibold text-muted">Pick a game</p>
-          {GAME_LIST.map((game) => {
-            const isSelected = room.selectedGame === game.id;
+          {CATEGORY_ORDER.map((category) => {
+            const games = GAME_LIST.filter((g) => g.category === category);
+            if (games.length === 0) return null;
+            const meta = CATEGORY_META[category];
             return (
-              <button
-                key={game.id}
-                onClick={() => send({ type: "select_game", gameId: game.id })}
-                className={`flex flex-col gap-1 rounded-2xl border px-5 py-4 text-left transition-colors ${
-                  isSelected
-                    ? "border-accent bg-accent/10"
-                    : "border-card-border bg-card hover:border-accent/50"
-                }`}
-              >
-                <span className="text-lg font-semibold">
-                  {game.emoji} {game.label}
-                </span>
-                <span className="text-sm text-muted">{game.description}</span>
-                <span className="text-xs text-muted">{playerRangeLabel(game)}</span>
-              </button>
+              <div key={category} className="flex flex-col gap-3">
+                <p className="text-xs font-bold tracking-wide text-muted uppercase">
+                  {meta.emoji} {meta.label}
+                </p>
+                {games.map((game) => {
+                  const isSelected = room.selectedGame === game.id;
+                  return (
+                    <button
+                      key={game.id}
+                      onClick={() => send({ type: "select_game", gameId: game.id })}
+                      className={`flex flex-col gap-1 rounded-2xl border px-5 py-4 text-left transition-colors ${
+                        isSelected
+                          ? "border-accent bg-accent/10"
+                          : "border-card-border bg-card hover:border-accent/50"
+                      }`}
+                    >
+                      <span className="text-lg font-semibold">
+                        {game.emoji} {game.label}
+                      </span>
+                      <span className="text-sm text-muted">{game.description}</span>
+                      <span className="text-xs text-muted">{playerRangeLabel(game)}</span>
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
 
