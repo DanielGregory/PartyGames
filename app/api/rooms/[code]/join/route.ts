@@ -16,6 +16,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: "Missing playerId." }, { status: 400 });
   }
 
-  const { privateToken } = await joinRoom(code, playerId, typeof name === "string" ? name : "");
-  return NextResponse.json({ privateToken });
+  const { privateToken, initial } = await joinRoom(code, playerId, typeof name === "string" ? name : "");
+  return NextResponse.json({ privateToken, initial });
 }

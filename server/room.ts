@@ -81,29 +81,35 @@ function publicState(room: RoomRow, players: Player[]): PublicRoomState {
   };
 }
 
-async function broadcastAll(room: RoomRow): Promise<void> {
+function messageFor(room: RoomRow, players: Player[], sp: ServerPlayer): ServerMessage {
+  const mod = room.game_id ? gameRegistry[room.game_id] : null;
+  const game = mod && room.game_state ? mod.redact(room.game_state, sp.id) : null;
+  return {
+    type: "state",
+    room: publicState(room, players),
+    game,
+    you: { id: sp.id, isHost: sp.id === room.host_id },
+  };
+}
+
+async function broadcastAll(room: RoomRow, opts: { skip?: string } = {}): Promise<void> {
   const supabase = getSupabaseServerClient();
   const players = withComputedConnected(room.players);
-  const mod = room.game_id ? gameRegistry[room.game_id] : null;
 
   await Promise.all(
-    room.players.map(async (sp) => {
-      const game = mod && room.game_state ? mod.redact(room.game_state, sp.id) : null;
-      const message: ServerMessage = {
-        type: "state",
-        room: publicState(room, players),
-        game,
-        you: { id: sp.id, isHost: sp.id === room.host_id },
-      };
-      // httpSend always goes over REST, which is what a stateless serverless
-      // function needs (no persistent websocket connection to reuse).
-      const channel = supabase.channel(`room-${room.code}-${sp.privateToken}`);
-      try {
-        await channel.httpSend("state", message);
-      } finally {
-        await supabase.removeChannel(channel);
-      }
-    })
+    room.players
+      .filter((sp) => sp.id !== opts.skip)
+      .map(async (sp) => {
+        const message = messageFor(room, players, sp);
+        // httpSend always goes over REST, which is what a stateless
+        // serverless function needs (no persistent websocket to reuse).
+        const channel = supabase.channel(`room-${room.code}-${sp.privateToken}`);
+        try {
+          await channel.httpSend("state", message);
+        } finally {
+          await supabase.removeChannel(channel);
+        }
+      })
   );
 }
 
@@ -111,7 +117,7 @@ export async function joinRoom(
   code: string,
   playerId: string,
   name: string
-): Promise<{ privateToken: string }> {
+): Promise<{ privateToken: string; initial: ServerMessage }> {
   const room = await loadRoom(code);
   let sp = room.players.find((p) => p.id === playerId);
   const cleanName = name.trim().slice(0, 20) || "Player";
@@ -132,8 +138,13 @@ export async function joinRoom(
   }
 
   await saveRoom(room);
-  await broadcastAll(room);
-  return { privateToken: sp.privateToken };
+  // The joiner gets their own state directly in the response rather than
+  // relying on the broadcast below: their Realtime channel can't possibly be
+  // subscribed yet (they don't even have the privateToken until this
+  // function returns), so a broadcast sent now would be missed entirely.
+  const initial = messageFor(room, withComputedConnected(room.players), sp);
+  await broadcastAll(room, { skip: sp.id });
+  return { privateToken: sp.privateToken, initial };
 }
 
 export async function heartbeat(code: string, playerId: string): Promise<void> {

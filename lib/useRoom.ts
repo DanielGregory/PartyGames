@@ -42,15 +42,23 @@ export function useRoom(code: string, name: string): RoomView {
     let heartbeatId: ReturnType<typeof setInterval> | undefined;
 
     async function start() {
-      const { ok, data } = await postJson<{ privateToken: string }>(`/api/rooms/${code}/join`, {
-        playerId,
-        name,
-      });
+      const { ok, data } = await postJson<{ privateToken: string; initial: ServerMessage }>(
+        `/api/rooms/${code}/join`,
+        { playerId, name }
+      );
       if (cancelled) return;
       if (!ok || !("privateToken" in data)) {
         setError(("error" in data && data.error) || "Failed to join the room.");
         return;
       }
+
+      // Applied directly rather than waiting for it to arrive over the
+      // channel below: the server broadcasts as part of the join call
+      // itself, before this client could possibly be subscribed yet.
+      setRoom(data.initial.room);
+      setGame(data.initial.game);
+      setYou(data.initial.you);
+      setError(null);
 
       const supabase = getSupabaseBrowserClient();
       const channel = supabase.channel(`room-${code}-${data.privateToken}`);
