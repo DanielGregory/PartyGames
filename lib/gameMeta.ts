@@ -1,6 +1,6 @@
-import type { GameId } from "@/party/types";
+import type { GameId } from "@/server/types";
 
-// Kept separate from party/games/registry.ts (server-only) so the client
+// Kept separate from server/games/registry.ts (server-only) so the client
 // bundle never pulls in game logic or answer banks.
 export type GameMeta = {
   id: GameId;

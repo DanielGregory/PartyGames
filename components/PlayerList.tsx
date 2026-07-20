@@ -1,4 +1,4 @@
-import type { Player } from "@/party/types";
+import type { Player } from "@/server/types";
 
 export function PlayerList({
   players,

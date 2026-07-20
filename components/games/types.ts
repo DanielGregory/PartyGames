@@ -1,4 +1,4 @@
-import type { ClientMessage, Player } from "@/party/types";
+import type { ClientMessage, Player } from "@/server/types";
 import type { GameView } from "@/lib/useRoom";
 
 export type GameProps = {

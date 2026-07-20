@@ -1,6 +1,7 @@
 // Shared types for the room/lobby/scoring platform and all game modules.
-// Imported by both the PartyKit server and the Next.js client (types only
-// on the client side, so game content/logic stays server-authoritative).
+// Imported by both the server-side room logic (server/room.ts, called from
+// Next.js API routes) and the Next.js client (types only on the client side,
+// so game content/logic stays server-authoritative).
 
 export type GameId = "spyfall" | "fibbingit" | "trivia" | "mostlikely";
 
@@ -32,25 +33,25 @@ export type PublicRoomState = {
   round: number;
 };
 
-// Message client -> server
+// Message client -> server, posted to /api/rooms/[code]/messages.
+// Joining is a separate call (POST /api/rooms/[code]/join) since it returns
+// the private-channel token the client needs before it can receive anything.
 export type ClientMessage =
-  | { type: "join"; playerId: string; name: string }
   | { type: "select_game"; gameId: GameId }
   | { type: "start_game" }
   | { type: "game_action"; payload: unknown }
   | { type: "next_round" }
   | { type: "end_game" };
 
-// Message server -> client. `game` is the redacted, per-player view of the
-// current game module's state (or null in the lobby).
-export type ServerMessage =
-  | {
-      type: "state";
-      room: PublicRoomState;
-      game: (BaseGameState & Record<string, unknown>) | null;
-      you: { id: string; isHost: boolean };
-    }
-  | { type: "error"; message: string };
+// Pushed to a player's private Realtime channel whenever room/game state
+// changes. `game` is the redacted, per-player view of the current game
+// module's state (or null in the lobby).
+export type ServerMessage = {
+  type: "state";
+  room: PublicRoomState;
+  game: (BaseGameState & Record<string, unknown>) | null;
+  you: { id: string; isHost: boolean };
+};
 
 export type GameMeta = {
   id: GameId;

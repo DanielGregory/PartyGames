@@ -1,4 +1,4 @@
-import type { Player } from "@/party/types";
+import type { Player } from "@/server/types";
 import { PlayerList } from "./PlayerList";
 import { Button } from "./ui";
 

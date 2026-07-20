@@ -2,87 +2,114 @@
 
 Mobile-friendly multiplayer party games. No accounts — a host creates a room,
 gets a 4-letter code (and QR code), and everyone else joins from their own
-phone. Next.js (App Router) renders the UI; a [Cloudflare Workers](https://developers.cloudflare.com/durable-objects/)
-Durable Object (via [`partyserver`](https://github.com/cloudflare/partykit/tree/main/packages/partyserver),
-the PartyKit-style API Cloudflare maintains directly since acquiring PartyKit)
-holds the authoritative room state and pushes live updates over WebSockets.
+phone. It's a single Next.js (App Router) app deployed to Vercel — no
+separate real-time server to run or deploy. Room state lives in a Supabase
+Postgres table, and [Supabase Realtime](https://supabase.com/docs/guides/realtime)
+Broadcast channels push live updates to each player's browser.
 
 Game modes: **Spyfall**, **Fibbing It**, **Trivia**, **Most Likely To**.
 
 ## Architecture
 
-- `party/main.ts` — a Cloudflare Worker + Durable Object (`Room`, built on
-  `partyserver`'s `Server` class) that owns the room/lobby/player/score state
-  and message routing. One Durable Object instance per room code.
-- `party/games/` — each game mode is an isolated module implementing the
-  `GameModule` interface (`party/types.ts`): `next()` to start a round,
+- `server/room.ts` — the authoritative room/lobby/player/score logic, called
+  from Next.js API routes (`app/api/rooms/[code]/...`). Loads a room's state
+  from Postgres, applies a message, saves it back, then pushes the result to
+  every player.
+- `server/games/` — each game mode is an isolated module implementing the
+  `GameModule` interface (`server/types.ts`): `next()` to start a round,
   `action()` to apply a player move, and `redact()` to produce the per-player
   view (so secrets like a Spyfall role or a Fibbing It author never reach the
   wrong client). Adding a new mode means adding one module and registering it
-  in `party/games/registry.ts` — the shared lobby, scoreboard, and
+  in `server/games/registry.ts` — the shared lobby, scoreboard, and
   round-advance UI need no changes.
+- **Realtime transport**: each player gets a random, unguessable
+  `privateToken` when they join (returned only to them, never broadcast to
+  others) and subscribes to a Supabase Realtime channel named
+  `room-{code}-{privateToken}`. After every action, the server computes each
+  player's own redacted view and broadcasts it to their private channel —
+  this is how hidden information (who's the spy, who wrote which fake answer)
+  stays hidden even though the whole app runs through one shared Postgres row.
+- **Liveness**: there's no persistent connection to "the server" the way a
+  websocket would give you, so each client pings a lightweight heartbeat
+  endpoint every 8s; a player is considered connected if we've heard from
+  them (heartbeat or any action) in the last 20s.
 - `app/`, `components/` — the Next.js client. `components/GameShell.tsx`
   renders the active game module's component and a shared scoreboard/"next
   round" panel whenever `game.roundOver` is true.
 - `lib/gameMeta.ts` — a client-safe list of game names/descriptions, kept
-  separate from `party/games/registry.ts` so prompt/answer banks never end up
-  in the browser bundle.
-- `wrangler.jsonc` — Cloudflare Workers config: the `Room` Durable Object is
-  bound as `Main`, so `partysocket`'s default `party: "main"` routes to it
-  with no client-side configuration.
+  separate from `server/games/registry.ts` so prompt/answer banks never end
+  up in the browser bundle.
+- `supabase/schema.sql` — the one table this app needs (`rooms`). Row Level
+  Security is on with zero policies, so only the service-role key (used
+  exclusively by the server-side API routes) can read or write it; the
+  public anon key can't touch it directly.
+
+## One-time Supabase setup
+
+No CLI required — everything below is clicking through the Supabase
+dashboard.
+
+1. Create a project at [supabase.com](https://supabase.com) (free tier is
+   plenty for this).
+2. Open **SQL Editor** → **New query**, paste the contents of
+   `supabase/schema.sql`, and run it.
+3. Open **Settings → API** and copy three values: the **Project URL**, the
+   **anon public** key, and the **service_role** key.
 
 ## Local development
 
-Requires Node 20.9+ and a Cloudflare account (free tier is fine — needed for
-`wrangler dev`/`deploy`, not for running the Next.js app itself).
+Requires Node 20.9+.
 
 ```bash
 npm install
-cp .env.example .env.local   # NEXT_PUBLIC_PARTYKIT_HOST=localhost:1999
-
-npm run party:dev   # terminal 1 — wrangler dev, the room server on :1999
-npm run dev          # terminal 2 — the Next.js app on :3000
+cp .env.example .env.local   # paste in the 3 Supabase values from above
+npm run dev
 ```
 
 Open `http://localhost:3000`, create a room, and open the room link in
 another tab (or on your phone, once both are on the same network and you
 swap `localhost` for your machine's LAN IP) to join as a second player.
+Realtime and the database are both the real hosted Supabase project — there's
+nothing to run locally besides `next dev`.
 
 ## Deploying
-
-**1. Deploy the Worker:**
-
-```bash
-npx wrangler login    # opens a browser to authenticate with Cloudflare
-npm run party:deploy
-```
-
-This publishes `party/main.ts` (per `wrangler.jsonc`) to something like
-`https://partygames.<your-cloudflare-subdomain>.workers.dev`.
-
-**2. Deploy the Next.js app to Vercel:**
 
 ```bash
 npx vercel
 ```
 
-In the Vercel project's environment variables, set:
+In the Vercel project's environment variables, set the same three values
+from `.env.local`:
 
 ```
-NEXT_PUBLIC_PARTYKIT_HOST=partygames.<your-cloudflare-subdomain>.workers.dev
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-(no `https://`, no trailing slash) and redeploy. That's the only environment
-variable the app needs — there's no database and no auth to configure.
+Redeploy. That's it — one app, one deploy target, no separate real-time
+server to stand up.
 
 ## Adding a new game mode
 
-1. Add a server module in `party/games/<mode>.ts` implementing `GameModule`
-   (see `party/games/trivia.ts` for the simplest example).
-2. Register it in `party/games/registry.ts`.
+1. Add a server module in `server/games/<mode>.ts` implementing `GameModule`
+   (see `server/games/trivia.ts` for the simplest example).
+2. Register it in `server/games/registry.ts`.
 3. Add its metadata to `lib/gameMeta.ts` (id, label, description, min players).
 4. Add a `components/games/<Mode>Game.tsx` view component and wire it into
    `components/GameShell.tsx`.
 
 The room/lobby/join flow, score tracking, and the round-over scoreboard panel
 are all shared — no other file needs to change.
+
+### Note for a future streaming/drawing mode
+
+The message envelope (`{ type: "game_action", payload }`) is already opaque
+to the core router, so a drawing mode's `draw-point`/`draw-clear` events need
+no changes to the room/lobby code. The one adjustment worth making *when*
+that mode is built: right now every action does a full
+load-reduce-persist-broadcast-to-everyone cycle, which is fine at
+"someone voted" frequency but wasteful at "30 messages/second per drawer."
+Give that mode's high-frequency events a pass-through broadcast path (relay
+directly via Supabase Realtime, skip the Postgres round-trip) rather than
+running them through `server/room.ts`'s reducer.
