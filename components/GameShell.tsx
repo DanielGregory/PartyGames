@@ -7,6 +7,8 @@ import { FibbingItGame } from "./games/FibbingItGame";
 import { TriviaGame } from "./games/TriviaGame";
 import { MostLikelyGame } from "./games/MostLikelyGame";
 import { QuizMasterGame } from "./games/QuizMasterGame";
+import { ConnectFourGame } from "./games/ConnectFourGame";
+import { HangmanGame } from "./games/HangmanGame";
 
 type Props = RoomView & {
   room: NonNullable<RoomView["room"]>;
@@ -28,6 +30,8 @@ export function GameShell({ room, game, you, send }: Props) {
       {room.selectedGame === "trivia" && <TriviaGame {...gameProps} />}
       {room.selectedGame === "mostlikely" && <MostLikelyGame {...gameProps} />}
       {room.selectedGame === "quizmaster" && <QuizMasterGame {...gameProps} />}
+      {room.selectedGame === "connectfour" && <ConnectFourGame {...gameProps} />}
+      {room.selectedGame === "hangman" && <HangmanGame {...gameProps} />}
 
       {game.roundOver && (
         <ScoreboardPanel

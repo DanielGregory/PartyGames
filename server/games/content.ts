@@ -135,6 +135,16 @@ export const MOST_LIKELY_PROMPTS: string[] = [
   "Most likely to survive alone in the wilderness",
 ];
 
+export const HANGMAN_WORDS: string[] = [
+  "ELEPHANT", "GUITAR", "VOLCANO", "PENGUIN", "SANDWICH", "TORNADO", "PYRAMID",
+  "OCTOPUS", "BICYCLE", "GALAXY", "PANCAKE", "DINOSAUR", "COMPASS", "BLANKET",
+  "WATERFALL", "TELESCOPE", "BUTTERFLY", "MARSHMALLOW", "SKATEBOARD", "CACTUS",
+  "LIGHTHOUSE", "AVALANCHE", "KANGAROO", "TRUMPET", "GLACIER", "PRETZEL",
+  "HAMMOCK", "JELLYFISH", "ORCHESTRA", "CAMPFIRE", "UMBRELLA", "SCORPION",
+  "HARMONICA", "PLAYGROUND", "SUBMARINE", "BLIZZARD", "ARMADILLO", "CANYON",
+  "FIREFLY", "MOUNTAIN",
+];
+
 export function pickUnused<T>(bank: T[], used: number[]): { item: T; index: number } {
   const available = bank.map((_, i) => i).filter((i) => !used.includes(i));
   const pool = available.length > 0 ? available : bank.map((_, i) => i);

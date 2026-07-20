@@ -3,7 +3,14 @@
 // Next.js API routes) and the Next.js client (types only on the client side,
 // so game content/logic stays server-authoritative).
 
-export type GameId = "spyfall" | "fibbingit" | "trivia" | "mostlikely" | "quizmaster";
+export type GameId =
+  | "spyfall"
+  | "fibbingit"
+  | "trivia"
+  | "mostlikely"
+  | "quizmaster"
+  | "connectfour"
+  | "hangman";
 
 export type Player = {
   id: string;
