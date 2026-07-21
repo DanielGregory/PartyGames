@@ -1,13 +1,14 @@
 import type { GameId } from "@/server/types";
 
-export type GameCategory = "party" | "word" | "twoplayer";
+export type GameCategory = "party" | "word" | "board" | "twoplayer";
 
-export const CATEGORY_ORDER: GameCategory[] = ["party", "word", "twoplayer"];
+export const CATEGORY_ORDER: GameCategory[] = ["party", "word", "board", "twoplayer"];
 
 export const CATEGORY_META: Record<GameCategory, { label: string; emoji: string }> = {
   party: { label: "Party Games", emoji: "🎉" },
   word: { label: "Word Games", emoji: "📝" },
-  twoplayer: { label: "2-Player Games", emoji: "🎲" },
+  board: { label: "Classic Board Games", emoji: "🎲" },
+  twoplayer: { label: "2-Player Games", emoji: "🆚" },
 };
 
 // Kept separate from server/games/registry.ts (server-only) so the client
@@ -266,6 +267,23 @@ export const GAME_LIST: GameMeta[] = [
     category: "party",
     minPlayers: 3,
     settings: [roundsSetting(0), minutesSetting("roundMinutes", "Drawing timer", [1, 2, 3, 5], 2)],
+  },
+  {
+    id: "sorry",
+    label: "Sorry!",
+    emoji: "😤",
+    description: "Race your 4 pawns around the board and home - bump opponents back to start along the way.",
+    category: "board",
+    minPlayers: 2,
+    maxPlayers: 4,
+  },
+  {
+    id: "yahtzee",
+    label: "Yahtzee",
+    emoji: "🎲",
+    description: "Roll dice, build the best hand, and fill your scorecard's 13 categories for the highest total.",
+    category: "board",
+    minPlayers: 1,
   },
 ];
 
