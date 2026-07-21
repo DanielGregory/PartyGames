@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Card } from "../ui";
 import { GameProps, nameOf } from "./types";
 
@@ -83,8 +84,36 @@ export function YahtzeeGame({ game, players, you, send }: GameProps) {
   const myCard = view.scorecards[you.id] ?? {};
   const jokerBonus = isYahtzeeRoll && myCard.yahtzee === 50;
 
+  // Kept in sync with every render so the settle timeout below always snaps
+  // to the true server value, even if a fresher roll result arrives
+  // mid-animation. A ref write belongs in an effect, not render, so this
+  // runs after commit rather than during render.
+  const latestDiceRef = useRef(view.dice);
+  useEffect(() => {
+    latestDiceRef.current = view.dice;
+  });
+
+  const [displayDice, setDisplayDice] = useState<number[]>(view.dice);
+  const [isRolling, setIsRolling] = useState(false);
+  const tumbleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   function roll() {
     send({ type: "game_action", payload: { type: "roll" } });
+
+    if (tumbleIntervalRef.current) clearInterval(tumbleIntervalRef.current);
+    if (settleTimeoutRef.current) clearTimeout(settleTimeoutRef.current);
+
+    setIsRolling(true);
+    const heldNow = view.held;
+    tumbleIntervalRef.current = setInterval(() => {
+      setDisplayDice((prev) => prev.map((d, i) => (heldNow[i] ? d : 1 + Math.floor(Math.random() * 6))));
+    }, 90);
+    settleTimeoutRef.current = setTimeout(() => {
+      if (tumbleIntervalRef.current) clearInterval(tumbleIntervalRef.current);
+      setDisplayDice(latestDiceRef.current);
+      setIsRolling(false);
+    }, 550);
   }
 
   function toggleHold(index: number) {
@@ -109,8 +138,8 @@ export function YahtzeeGame({ game, players, you, send }: GameProps) {
 
       {view.stage === "rolling" && (
         <>
-          <div className="flex justify-center gap-2">
-            {view.dice.map((d, i) => (
+          <div className="flex justify-center gap-3 rounded-3xl border border-card-border bg-black/20 p-4 shadow-inner">
+            {displayDice.map((d, i) => (
               <button
                 // Held dice keep a stable key (no remount, no replay); an
                 // unheld die's key changes with every roll, which forces
@@ -118,11 +147,11 @@ export function YahtzeeGame({ game, players, you, send }: GameProps) {
                 // simplest way to get a CSS animation to fire again on a
                 // value that already changed once before.
                 key={view.held[i] ? `held-${i}` : `${i}-${view.rollsUsed}`}
-                disabled={!isYourTurn || view.rollsUsed === 0 || view.rollsUsed >= view.maxRolls}
+                disabled={!isYourTurn || isRolling || view.rollsUsed === 0 || view.rollsUsed >= view.maxRolls}
                 onClick={() => toggleHold(i)}
-                className={`flex h-14 w-14 items-center justify-center rounded-xl border text-4xl transition-colors disabled:opacity-70 ${
+                className={`flex h-16 w-16 items-center justify-center rounded-2xl border-2 text-5xl shadow-lg transition-colors disabled:opacity-70 ${
                   view.held[i] ? "border-accent bg-accent/20" : "border-card-border bg-card"
-                } ${view.rollsUsed > 0 && !view.held[i] ? "animate-dice-roll" : ""}`}
+                } ${isRolling && !view.held[i] ? "animate-dice-roll" : ""}`}
               >
                 {d === 0 ? "🎲" : DICE_GLYPHS[d]}
               </button>
@@ -135,10 +164,10 @@ export function YahtzeeGame({ game, players, you, send }: GameProps) {
           {isYourTurn && (
             <button
               onClick={roll}
-              disabled={view.rollsUsed >= view.maxRolls}
+              disabled={isRolling || view.rollsUsed >= view.maxRolls}
               className="rounded-2xl border border-accent bg-accent/20 px-6 py-4 text-lg font-semibold text-accent transition-colors disabled:opacity-40"
             >
-              {view.rollsUsed === 0 ? "Roll" : `Reroll (${view.maxRolls - view.rollsUsed} left)`}
+              {isRolling ? "Rolling…" : view.rollsUsed === 0 ? "Roll" : `Reroll (${view.maxRolls - view.rollsUsed} left)`}
             </button>
           )}
 
@@ -169,34 +198,46 @@ export function YahtzeeGame({ game, players, you, send }: GameProps) {
         </>
       )}
 
-      <Card className="overflow-x-auto">
-        <p className="mb-2 text-sm font-semibold text-muted">Scores</p>
-        <table className="w-full min-w-max text-sm">
+      <Card className="overflow-x-auto border-2 border-card-border/80">
+        <p className="mb-3 border-b border-card-border/60 pb-2 text-sm font-bold uppercase tracking-wide text-muted">
+          📋 Scorecard
+        </p>
+        <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
           <thead>
             <tr>
-              <th className="pr-2 text-left font-normal text-muted">Category</th>
+              <th className="sticky left-0 z-10 border-b border-card-border/60 bg-card px-2 py-2 text-left font-normal text-muted">
+                Category
+              </th>
               {view.players.map((pid) => (
-                <th key={pid} className={`px-2 text-right font-semibold ${pid === view.currentTurn ? "text-accent" : ""}`}>
+                <th
+                  key={pid}
+                  className={`min-w-16 border-b border-card-border/60 px-2 py-2 text-right font-semibold ${
+                    pid === view.currentTurn ? "bg-accent/10 text-accent" : ""
+                  }`}
+                >
                   {nameOf(players, pid)}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {CATEGORIES.map((c) => (
-              <tr key={c} className="border-t border-card-border/50">
-                <td className="py-1 pr-2 text-muted">{CATEGORY_LABELS[c]}</td>
+            {CATEGORIES.map((c, i) => (
+              <tr key={c} className={i % 2 === 1 ? "bg-white/5" : ""}>
+                <td className="sticky left-0 z-10 bg-card px-2 py-1.5 text-muted">{CATEGORY_LABELS[c]}</td>
                 {view.players.map((pid) => (
-                  <td key={pid} className="px-2 py-1 text-right font-mono">
+                  <td
+                    key={pid}
+                    className={`px-2 py-1.5 text-right font-mono ${pid === view.currentTurn ? "bg-accent/10" : ""}`}
+                  >
                     {view.scorecards[pid]?.[c] ?? "—"}
                   </td>
                 ))}
               </tr>
             ))}
-            <tr className="border-t-2 border-card-border font-bold">
-              <td className="py-1 pr-2">Total</td>
+            <tr className="border-t-2 border-accent/60 font-bold">
+              <td className="sticky left-0 z-10 bg-card px-2 py-2">Total</td>
               {view.players.map((pid) => (
-                <td key={pid} className="px-2 py-1 text-right font-mono text-accent">
+                <td key={pid} className="px-2 py-2 text-right font-mono text-lg text-accent">
                   {view.totals[pid] ?? 0}
                 </td>
               ))}
