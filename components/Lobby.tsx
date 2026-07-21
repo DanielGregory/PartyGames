@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { RoomView } from "@/lib/useRoom";
-import { CATEGORY_META, CATEGORY_ORDER, GAME_LIST, type GameMeta } from "@/lib/gameMeta";
+import { CATEGORY_META, CATEGORY_ORDER, GAME_LIST, type GameCategory, type GameMeta } from "@/lib/gameMeta";
 import { PlayerList } from "./PlayerList";
 import { QRLink } from "./QRLink";
 import { Button, Card } from "./ui";
@@ -28,6 +28,10 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
   const needsSelection = selected?.maxPlayers !== undefined && connectedCount > selected.maxPlayers;
   const [activeIds, setActiveIds] = useState<string[]>([]);
   const [settingsValues, setSettingsValues] = useState<Record<string, string | number>>(() => defaultSettings(selected));
+  // Collapsed by default - the landing screen shows just the 3 category
+  // rows, not all 13 games at once. Opens to whichever category holds the
+  // already-selected game, if any.
+  const [openCategory, setOpenCategory] = useState<GameCategory | null>(selected?.category ?? null);
 
   // Reset the player picker and settings during render (not an effect) the
   // moment the host picks a different game, rather than carrying over a
@@ -37,6 +41,7 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
     setLastSelectedGame(room.selectedGame);
     setActiveIds([]);
     setSettingsValues(defaultSettings(selected));
+    setOpenCategory(selected?.category ?? null);
   }
 
   const selectionValid =
@@ -96,31 +101,55 @@ export function Lobby({ room, you, send, error }: RoomView & { room: NonNullable
             const games = GAME_LIST.filter((g) => g.category === category);
             if (games.length === 0) return null;
             const meta = CATEGORY_META[category];
+            const isOpen = openCategory === category;
+            const selectedHere = selected?.category === category ? selected : null;
             return (
-              <div key={category} className="flex flex-col gap-3">
-                <p className="text-xs font-bold tracking-wide text-muted uppercase">
-                  {meta.emoji} {meta.label}
-                </p>
-                {games.map((game) => {
-                  const isSelected = room.selectedGame === game.id;
-                  return (
-                    <button
-                      key={game.id}
-                      onClick={() => send({ type: "select_game", gameId: game.id })}
-                      className={`flex flex-col gap-1 rounded-2xl border px-5 py-4 text-left transition-colors ${
-                        isSelected
-                          ? "border-accent bg-accent/10"
-                          : "border-card-border bg-card hover:border-accent/50"
-                      }`}
-                    >
-                      <span className="text-lg font-semibold">
-                        {game.emoji} {game.label}
-                      </span>
-                      <span className="text-sm text-muted">{game.description}</span>
-                      <span className="text-xs text-muted">{playerRangeLabel(game)}</span>
-                    </button>
-                  );
-                })}
+              <div key={category} className="flex flex-col gap-2">
+                <button
+                  onClick={() => setOpenCategory(isOpen ? null : category)}
+                  className={`flex items-center justify-between rounded-2xl border px-5 py-4 text-left transition-colors ${
+                    isOpen ? "border-accent bg-accent/10" : "border-card-border bg-card hover:border-accent/50"
+                  }`}
+                >
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-lg font-semibold">
+                      {meta.emoji} {meta.label}
+                    </span>
+                    <span className="text-xs text-muted">
+                      {selectedHere ? `Selected: ${selectedHere.emoji} ${selectedHere.label}` : `${games.length} games`}
+                    </span>
+                  </span>
+                  <span
+                    className={`text-xl text-muted transition-transform ${isOpen ? "rotate-90" : ""}`}
+                  >
+                    ›
+                  </span>
+                </button>
+
+                {isOpen && (
+                  <div className="animate-fade-slide-in flex flex-col gap-2 pl-1">
+                    {games.map((game) => {
+                      const isSelected = room.selectedGame === game.id;
+                      return (
+                        <button
+                          key={game.id}
+                          onClick={() => send({ type: "select_game", gameId: game.id })}
+                          className={`flex flex-col gap-1 rounded-2xl border px-5 py-4 text-left transition-colors ${
+                            isSelected
+                              ? "border-accent bg-accent/10"
+                              : "border-card-border bg-card hover:border-accent/50"
+                          }`}
+                        >
+                          <span className="text-lg font-semibold">
+                            {game.emoji} {game.label}
+                          </span>
+                          <span className="text-sm text-muted">{game.description}</span>
+                          <span className="text-xs text-muted">{playerRangeLabel(game)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
