@@ -42,14 +42,17 @@ export function isPlayersTurn(turn: TurnState, playerId: string): boolean {
  * Advances to the next player in order, wrapping around. Players in `skip`
  * (e.g. eliminated players, or anyone disconnected) are passed over. Clears
  * any turn timeout - call withTurnTimeout again after if the mode uses one.
+ * `direction` defaults to forward (1); pass -1 for a mode where play order
+ * can reverse (e.g. Uno's Reverse card) - the caller owns storing which
+ * direction is currently active, this just walks one step that way.
  */
-export function advanceTurn(turn: TurnState, skip: string[] = []): TurnState {
+export function advanceTurn(turn: TurnState, skip: string[] = [], direction: 1 | -1 = 1): TurnState {
   const total = turn.order.length;
   if (total === 0) return turn;
 
   let nextIndex = turn.currentIndex;
   for (let i = 0; i < total; i++) {
-    nextIndex = (nextIndex + 1) % total;
+    nextIndex = (nextIndex + direction + total) % total;
     if (!skip.includes(turn.order[nextIndex])) break;
   }
 

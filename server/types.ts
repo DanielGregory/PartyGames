@@ -18,7 +18,8 @@ export type GameId =
   | "wordle"
   | "pictionary"
   | "sorry"
-  | "yahtzee";
+  | "yahtzee"
+  | "uno";
 
 export type Player = {
   id: string;

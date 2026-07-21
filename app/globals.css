@@ -180,3 +180,61 @@ input {
 @utility animate-win-glow {
   animation: win-glow 0.9s ease-out 3;
 }
+
+@keyframes dice-roll {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  20% {
+    transform: rotate(-25deg) scale(1.15);
+  }
+  40% {
+    transform: rotate(20deg) scale(1.1);
+  }
+  60% {
+    transform: rotate(-15deg) scale(1.1);
+  }
+  80% {
+    transform: rotate(8deg) scale(1.05);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+@utility animate-dice-roll {
+  animation: dice-roll 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+@keyframes card-deal {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.7) rotate(-6deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.05) rotate(1deg);
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+@utility animate-card-deal {
+  animation: card-deal 0.35s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+@keyframes hop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  55% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@utility animate-hop {
+  animation: hop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}

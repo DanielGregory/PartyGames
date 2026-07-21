@@ -63,6 +63,54 @@ export function SorryGame({ game, players, you, send }: GameProps) {
     }
   }
 
+  // Hop whichever main-loop cells just changed occupant (a move, a bump,
+  // an exit from start, or a step into safety leaving the loop). Computed
+  // during render (React's documented pattern for "derive state from a
+  // changed value") rather than in an effect, comparing against the last
+  // rendered snapshot kept in state - avoids a setState-in-effect entirely.
+  const mainLoopKey = mainLoop.join(",");
+  const [justMoved, setJustMoved] = useState<Set<number>>(new Set());
+  const [lastMainLoopKey, setLastMainLoopKey] = useState<string | null>(null);
+  if (mainLoopKey !== lastMainLoopKey) {
+    const changed = new Set<number>();
+    if (lastMainLoopKey !== null) {
+      const prevCells = lastMainLoopKey.split(",");
+      for (let i = 0; i < mainLoop.length; i++) {
+        if (prevCells[i] !== (mainLoop[i] ?? "")) changed.add(i);
+      }
+    }
+    setLastMainLoopKey(mainLoopKey);
+    setJustMoved(changed);
+  }
+
+  // Same idea for each player's safety/home counts, which don't show up
+  // on the loop grid at all - a pop on the summary row is the only visual
+  // cue a move into/within safety or home gets.
+  const safetyHomeCounts = Object.fromEntries(
+    colorOrder.map((pid) => {
+      const pawns = view.pawns[pid] ?? [];
+      const home = pawns.filter((p) => p.progress === view.trackLength + view.safetyLength).length;
+      const safety = pawns.filter(
+        (p) => p.progress >= view.trackLength && p.progress < view.trackLength + view.safetyLength
+      ).length;
+      return [pid, `${safety}-${home}`];
+    })
+  );
+  const safetyHomeKey = JSON.stringify(safetyHomeCounts);
+  const [justAdvanced, setJustAdvanced] = useState<Set<string>>(new Set());
+  const [lastSafetyHomeKey, setLastSafetyHomeKey] = useState<string | null>(null);
+  if (safetyHomeKey !== lastSafetyHomeKey) {
+    const changed = new Set<string>();
+    if (lastSafetyHomeKey !== null) {
+      const prevCounts = JSON.parse(lastSafetyHomeKey) as Record<string, string>;
+      for (const pid of colorOrder) {
+        if (prevCounts[pid] !== safetyHomeCounts[pid]) changed.add(pid);
+      }
+    }
+    setLastSafetyHomeKey(safetyHomeKey);
+    setJustAdvanced(changed);
+  }
+
   function playMove(move: LegalMove) {
     send({
       type: "game_action",
@@ -110,8 +158,14 @@ export function SorryGame({ game, players, you, send }: GameProps) {
       <Board
         columns={6}
         cells={mainLoop}
-        renderCell={(pid) =>
-          pid ? <span className={`h-[70%] w-[70%] rounded-full ${PAWN_COLORS[colorIndex(pid)] ?? "bg-muted"}`} /> : null
+        renderCell={(pid, index) =>
+          pid ? (
+            <span
+              className={`h-[70%] w-[70%] rounded-full ${PAWN_COLORS[colorIndex(pid)] ?? "bg-muted"} ${
+                justMoved.has(index) ? "animate-hop" : ""
+              }`}
+            />
+          ) : null
         }
       />
 
@@ -136,7 +190,7 @@ export function SorryGame({ game, players, you, send }: GameProps) {
                   {nameOf(players, pid)} {pid === you.id && <span className="text-muted">(you)</span>}
                 </span>
               </div>
-              <span className="text-sm text-muted">
+              <span className={`text-sm text-muted ${justAdvanced.has(pid) ? "animate-pop" : ""}`}>
                 🏠{startCount} · 🛡️{safetyCount} · 🏆{homeCount}/4
               </span>
             </div>

@@ -7,7 +7,7 @@ export const CATEGORY_ORDER: GameCategory[] = ["party", "word", "board", "twopla
 export const CATEGORY_META: Record<GameCategory, { label: string; emoji: string }> = {
   party: { label: "Party Games", emoji: "🎉" },
   word: { label: "Word Games", emoji: "📝" },
-  board: { label: "Classic Board Games", emoji: "🎲" },
+  board: { label: "Classic Games", emoji: "🎲" },
   twoplayer: { label: "2-Player Games", emoji: "🆚" },
 };
 
@@ -284,6 +284,15 @@ export const GAME_LIST: GameMeta[] = [
     description: "Roll dice, build the best hand, and fill your scorecard's 13 categories for the highest total.",
     category: "board",
     minPlayers: 1,
+  },
+  {
+    id: "uno",
+    label: "Uno",
+    emoji: "🃏",
+    description: "Match color or number to empty your hand first - Skip, Reverse, and Wild cards keep everyone on their toes.",
+    category: "board",
+    minPlayers: 2,
+    maxPlayers: 6,
   },
 ];
 

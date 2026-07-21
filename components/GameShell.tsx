@@ -19,6 +19,7 @@ import { WordleGame } from "./games/WordleGame";
 import { PictionaryGame } from "./games/PictionaryGame";
 import { SorryGame } from "./games/SorryGame";
 import { YahtzeeGame } from "./games/YahtzeeGame";
+import { UnoGame } from "./games/UnoGame";
 
 type Props = RoomView & {
   room: NonNullable<RoomView["room"]>;
@@ -68,6 +69,7 @@ export function GameShell({ room, game, you, send }: Props) {
       {room.selectedGame === "pictionary" && <PictionaryGame {...gameProps} />}
       {room.selectedGame === "sorry" && <SorryGame {...gameProps} />}
       {room.selectedGame === "yahtzee" && <YahtzeeGame {...gameProps} />}
+      {room.selectedGame === "uno" && <UnoGame {...gameProps} />}
 
       {game.roundOver && (
         <ScoreboardPanel

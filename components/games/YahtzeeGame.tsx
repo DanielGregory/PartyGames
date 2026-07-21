@@ -112,12 +112,17 @@ export function YahtzeeGame({ game, players, you, send }: GameProps) {
           <div className="flex justify-center gap-2">
             {view.dice.map((d, i) => (
               <button
-                key={i}
+                // Held dice keep a stable key (no remount, no replay); an
+                // unheld die's key changes with every roll, which forces
+                // React to remount it and replay the roll animation - the
+                // simplest way to get a CSS animation to fire again on a
+                // value that already changed once before.
+                key={view.held[i] ? `held-${i}` : `${i}-${view.rollsUsed}`}
                 disabled={!isYourTurn || view.rollsUsed === 0 || view.rollsUsed >= view.maxRolls}
                 onClick={() => toggleHold(i)}
                 className={`flex h-14 w-14 items-center justify-center rounded-xl border text-4xl transition-colors disabled:opacity-70 ${
                   view.held[i] ? "border-accent bg-accent/20" : "border-card-border bg-card"
-                }`}
+                } ${view.rollsUsed > 0 && !view.held[i] ? "animate-dice-roll" : ""}`}
               >
                 {d === 0 ? "🎲" : DICE_GLYPHS[d]}
               </button>
