@@ -294,6 +294,35 @@ export const GAME_LIST: GameMeta[] = [
     minPlayers: 2,
     maxPlayers: 6,
   },
+  {
+    id: "war",
+    label: "War",
+    emoji: "⚔️",
+    description: "Flip your top card each battle - highest card wins both. Ties trigger a War. Simple, fast, no decisions.",
+    category: "twoplayer",
+    minPlayers: 2,
+    maxPlayers: 2,
+  },
+  {
+    id: "blackjack",
+    label: "Blackjack",
+    emoji: "🂡",
+    description: "Beat the dealer without going over 21. Hit, stand, and hope for a natural blackjack.",
+    category: "board",
+    minPlayers: 1,
+    maxPlayers: 6,
+    settings: [roundsSetting(0)],
+  },
+  {
+    id: "holdem",
+    label: "Texas Hold'em",
+    emoji: "🎰",
+    description: "Casual no-frills hold'em - check, call, raise, or fold your way through the flop, turn, and river.",
+    category: "board",
+    minPlayers: 2,
+    maxPlayers: 8,
+    settings: [roundsSetting(0)],
+  },
 ];
 
 export function gameMeta(id: GameId): GameMeta {

@@ -19,7 +19,10 @@ export type GameId =
   | "pictionary"
   | "sorry"
   | "yahtzee"
-  | "uno";
+  | "uno"
+  | "war"
+  | "blackjack"
+  | "holdem";
 
 export type Player = {
   id: string;

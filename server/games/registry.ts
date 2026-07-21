@@ -15,6 +15,9 @@ import { pictionaryModule } from "./pictionary";
 import { sorryModule } from "./sorry";
 import { yahtzeeModule } from "./yahtzee";
 import { unoModule } from "./uno";
+import { warModule } from "./war";
+import { blackjackModule } from "./blackjack";
+import { holdemModule } from "./holdem";
 
 export const gameRegistry: Record<GameId, GameModule<BaseGameState & Record<string, unknown>>> = {
   spyfall: spyfallModule as GameModule<BaseGameState & Record<string, unknown>>,
@@ -33,6 +36,9 @@ export const gameRegistry: Record<GameId, GameModule<BaseGameState & Record<stri
   sorry: sorryModule as GameModule<BaseGameState & Record<string, unknown>>,
   yahtzee: yahtzeeModule as GameModule<BaseGameState & Record<string, unknown>>,
   uno: unoModule as GameModule<BaseGameState & Record<string, unknown>>,
+  war: warModule as GameModule<BaseGameState & Record<string, unknown>>,
+  blackjack: blackjackModule as GameModule<BaseGameState & Record<string, unknown>>,
+  holdem: holdemModule as GameModule<BaseGameState & Record<string, unknown>>,
 };
 
 export const gameList = Object.values(gameRegistry).map((m) => m.meta);
