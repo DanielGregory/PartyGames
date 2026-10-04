@@ -7,7 +7,14 @@ separate real-time server to run or deploy. Room state lives in a Supabase
 Postgres table, and [Supabase Realtime](https://supabase.com/docs/guides/realtime)
 Broadcast channels push live updates to each player's browser.
 
-Game modes: **Spyfall**, **Fibbing It**, **Trivia**, **Most Likely To**.
+**[Play it →](https://party-games-ruby.vercel.app)**
+
+19 game modes, each with host-adjustable settings and a shared cross-game scoreboard:
+
+- **Party:** Spyfall, Fibbing It, Trivia, Most Likely To, Quiz Master, Pictionary
+- **Word:** Wordle, Boggle, Word Search, Hangman
+- **Board and cards:** Uno, Sorry!, Yahtzee, War, Blackjack, Texas Hold'em
+- **2-player:** Connect Four, Battleship, Guess Who
 
 ## Architecture
 
@@ -102,12 +109,13 @@ server to stand up.
 The room/lobby/join flow, score tracking, and the round-over scoreboard panel
 are all shared — no other file needs to change.
 
-### Note for a future streaming/drawing mode
+### Note on high-frequency modes (Pictionary)
 
-The message envelope (`{ type: "game_action", payload }`) is already opaque
-to the core router, so a drawing mode's `draw-point`/`draw-clear` events need
-no changes to the room/lobby code. The one adjustment worth making *when*
-that mode is built: right now every action does a full
+The message envelope (`{ type: "game_action", payload }`) is opaque to the
+core router, so Pictionary's stroke events (`start_stroke`, `add_points`,
+`clear_canvas`) needed no changes to the room/lobby code. It batches stroke
+points so each action carries several. If drawing ever needs to be smoother,
+the adjustment worth making: right now every action does a full
 load-reduce-persist-broadcast-to-everyone cycle, which is fine at
 "someone voted" frequency but wasteful at "30 messages/second per drawer."
 Give that mode's high-frequency events a pass-through broadcast path (relay
